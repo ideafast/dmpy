@@ -132,6 +132,8 @@ Notes specific to dmpapp:
 
       python -m dmpapp list -k AX6 -id
 
+      TODO: details below are incorrect: (i) t_from_utc; (ii) includes size; (iii) shows prefix of fileid...
+
       subject kind  device_id                         t_from                                file_name                               file_id
       KV4XTG4  AX6  AX646ZRDQ  2020-09-02T09:27:00.299+00:00                   6011458_0000000002.cwa  0c072d53-438a-449f-a96e-3022737e75ab
       KV4XTG4  AX6  AX6YACHK2  2020-08-26T09:26:34.504+00:00                   6011503_0000000001.cwa  12af910e-3cb3-483e-922f-f395ea8ab014
@@ -164,3 +166,6 @@ Notes specific to dmpapp:
   cases will be skipped and a warning will be printed. If you run into this, you can specify
   an explicit file ID to select and download the version you want.
 
+TODO: add doc for dmpapp onefile ... 
+
+  python dmpapp.py onefile -id 375da3ba-5199-41da-a594-386f5ae71213 -out example.csv
