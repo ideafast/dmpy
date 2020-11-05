@@ -1,0 +1,32 @@
+# The login query
+
+fragment ALL_FOR_USER on User {
+    id
+    username
+    type
+    firstname
+    lastname
+    email
+    organisation
+    description
+    access {
+        id
+        projects {
+            id
+            name
+            studyId
+        }
+        studies {
+            id
+            name
+        }
+    },
+    createdAt,
+    expiredAt
+}
+
+mutation login($username: String!, $password: String!, $totp: String!) {
+  login(username: $username, password: $password, totp: $totp) {
+      ...ALL_FOR_USER
+  }
+}

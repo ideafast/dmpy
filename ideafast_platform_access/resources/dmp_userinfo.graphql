@@ -1,0 +1,30 @@
+fragment ALL_FOR_USER on User {
+    id
+    username
+    type
+    firstname
+    lastname
+    email
+    organisation
+    description
+    access {
+        id
+        projects {
+            id
+            name
+            studyId
+        }
+        studies {
+            id
+            name
+        }
+    },
+    createdAt,
+    expiredAt
+}
+
+query user($userid: String!) {
+    getUsers(userId: $userid) {
+      ...ALL_FOR_USER
+    }
+}

@@ -1,0 +1,18 @@
+
+query getStudy($studyId: String!) {
+        getStudy(studyId: $studyId) {
+            id
+            name
+            createdBy
+            files {
+                id
+                fileName
+                studyId
+                projectId
+                fileSize
+                description
+                uploadTime
+                uploadedBy
+            }
+        }
+    }

@@ -1,0 +1,67 @@
+fragment ALL_FOR_JOB on Job {
+        id
+        studyId
+        projectId
+        jobType
+        requester
+        requestTime
+        receivedFiles
+        status
+        error
+        cancelled
+        cancelledTime
+        data
+    }
+
+query getStudy($studyId: String!) {
+        getStudy(studyId: $studyId) {
+            id
+            name
+            createdBy
+            jobs {
+               ...ALL_FOR_JOB
+            }
+            projects {
+               id
+               studyId
+               name
+            }
+            roles {
+                id
+                name
+                permissions
+                projectId
+                studyId
+                users {
+                    id
+                    firstname
+                    lastname
+                    organisation
+                    username
+                }
+            }
+            files {
+                id
+                fileName
+                studyId
+                projectId
+                fileSize
+                description
+                uploadTime
+                uploadedBy
+            }
+            numOfSubjects
+            currentDataVersion
+            dataVersions {
+                id
+                version
+                tag
+                uploadDate
+                jobId
+                extractedFrom
+                fileSize
+                contentId
+                fieldTrees
+            }
+        }
+    }
