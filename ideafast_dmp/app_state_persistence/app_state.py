@@ -19,10 +19,12 @@ class AppState:
         the folder to save state files to
         :param appname: The application name
         """
-        if not(appname.isidentifier()):
-            raise ValueError(f'"{appname}" is not a valid appname (expecting an identifier)')
+        if not (appname.isidentifier()):
+            raise ValueError(
+                f'"{appname}" is not a valid appname (expecting an identifier)'
+            )
         self._appname = appname
-        self._apphome = Path.home().joinpath('.' + appname)
+        self._apphome = Path.home().joinpath("." + appname)
         self._apphome.mkdir(parents=True, exist_ok=True)
         pass
 
@@ -57,7 +59,7 @@ class AppState:
         Get the full path to the file where the given state will be saved to or
         will be loaded from
         """
-        return self.home.joinpath(state_name + '.json')
+        return self.home.joinpath(state_name + ".json")
 
     def save_state(self, name: str, state: Any):
         """
@@ -67,21 +69,21 @@ class AppState:
         to delete an existing named state
         :return: Returns None
         """
-        if not(name.isidentifier()):
+        if not (name.isidentifier()):
             raise ValueError(f'"{name}" is not a a valid app state identifier')
-        statefile = self.home.joinpath(name + '.json')
+        statefile = self.home.joinpath(name + ".json")
         tmpfile = statefile.with_suffix(".tmp")
         if state is None:
             # soft-delete: move it to the backup file
             if statefile.exists():
-                bakfile = statefile.with_suffix('.bak')
+                bakfile = statefile.with_suffix(".bak")
                 statefile.replace(bakfile)
             pass
         else:
-            with tmpfile.open('w') as tf:
+            with tmpfile.open("w") as tf:
                 json.dump(state, tf, indent=2)
             if statefile.exists():
-                bakfile = statefile.with_suffix('.bak')
+                bakfile = statefile.with_suffix(".bak")
                 statefile.replace(bakfile)
             tmpfile.replace(statefile)
         pass
@@ -94,13 +96,13 @@ class AppState:
         :return: The saved state object, converted back from JSON, or the default
         argument if there was no state saved
         """
-        if not(name.isidentifier()):
+        if not (name.isidentifier()):
             raise ValueError(f'"{name}" is not a a valid app state identifier')
-        statefile = self.home.joinpath(name + '.json')
-        if not(statefile.exists()):
+        statefile = self.home.joinpath(name + ".json")
+        if not (statefile.exists()):
             return default
         else:
-            with statefile.open('r') as sf:
+            with statefile.open("r") as sf:
                 state = json.load(sf)
             return state
 
@@ -112,11 +114,11 @@ class AppState:
         :return: The time stamp as a UNIX-like time code (seconds since
         1970-01-01 00:00:00 UTC) or None
         """
-        if not(name.isidentifier()):
+        if not (name.isidentifier()):
             raise ValueError(f'"{name}" is not a a valid app state identifier')
         # The type annotation is to stop PyCharm 2020.1 from showing incorrect use warnings
-        statefile: Union[Path, PathLike] = self.home.joinpath(name + '.json')
-        if not(statefile.exists()):
+        statefile: Union[Path, PathLike] = self.home.joinpath(name + ".json")
+        if not (statefile.exists()):
             return None
         else:
             return os.path.getmtime(statefile)
@@ -128,11 +130,11 @@ class AppState:
         :param name: The name of the state (a valid identifier)
         :return: The time stamp as a datetime in the UTC timezone, or None
         """
-        if not(name.isidentifier()):
+        if not (name.isidentifier()):
             raise ValueError(f'"{name}" is not a a valid app state identifier')
         # The type annotation is to stop PyCharm 2020.1 from showing incorrect use warnings
-        statefile: Union[Path, PathLike] = self.home.joinpath(name + '.json')
-        if not(statefile.exists()):
+        statefile: Union[Path, PathLike] = self.home.joinpath(name + ".json")
+        if not (statefile.exists()):
             return None
         else:
             ts = os.path.getmtime(statefile)
@@ -147,11 +149,12 @@ class NamedAppState:
     Combines an AppState with a fixed state name, enabling a more compact
     access API
     """
+
     def __init__(self, host: AppState, statename: str):
         self._host = host
         self._statename = statename
-        if not(statename.isidentifier()):
-            raise ValueError('The state name must be a valid identifier')
+        if not (statename.isidentifier()):
+            raise ValueError("The state name must be a valid identifier")
         pass
 
     @property
@@ -213,5 +216,3 @@ class NamedAppState:
         :return: The time stamp as a datetime in the UTC timezone, or None
         """
         return self._host.state_datetime(self._statename)
-
-

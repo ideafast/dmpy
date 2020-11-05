@@ -1,39 +1,38 @@
-
 from typing import List, Any, Dict, Optional
-from .dmp_utils import safe_dict_get, safe_list_get
+from ideafast_dmp.dmp_utils import safe_dict_get, safe_list_get
 from datetime import datetime, timedelta, timezone, tzinfo
 
 
 class DmpUserInfo:
     def __init__(self, raw: Dict[str, Any]):
-        self._username = safe_dict_get(raw, 'username')
-        self._firstname = safe_dict_get(raw, 'firstname')
-        self._lastname = safe_dict_get(raw, 'lastname')
-        self._email = safe_dict_get(raw, 'email')
-        created = safe_dict_get(raw, 'createdAt')
+        self._username = safe_dict_get(raw, "username")
+        self._firstname = safe_dict_get(raw, "firstname")
+        self._lastname = safe_dict_get(raw, "lastname")
+        self._email = safe_dict_get(raw, "email")
+        created = safe_dict_get(raw, "createdAt")
         if created is None or created == 0:
             self._created = None
         else:
-            created = datetime.fromtimestamp(created*0.001, tz=timezone.utc)
-            self._created = created.isoformat(' ', 'seconds')
-        expires = safe_dict_get(raw, 'expiredAt')
+            created = datetime.fromtimestamp(created * 0.001, tz=timezone.utc)
+            self._created = created.isoformat(" ", "seconds")
+        expires = safe_dict_get(raw, "expiredAt")
         if expires is None or expires == 0:
             self._expires = None
         else:
-            expires = datetime.fromtimestamp(expires*0.001, tz=timezone.utc)
-            self._expires = expires.isoformat(' ', 'seconds')
-        access = safe_dict_get(raw, 'access')
-        studies = safe_dict_get(access, 'studies')
+            expires = datetime.fromtimestamp(expires * 0.001, tz=timezone.utc)
+            self._expires = expires.isoformat(" ", "seconds")
+        access = safe_dict_get(raw, "access")
+        studies = safe_dict_get(access, "studies")
         if studies is None:
             self._studies = None
         else:
             sd = dict()
             for d in studies:
                 if d is not None:
-                    study_id = safe_dict_get(d, 'id')
-                    name = safe_dict_get(d, 'name')
+                    study_id = safe_dict_get(d, "id")
+                    name = safe_dict_get(d, "name")
                     if study_id is not None:
-                        sd[study_id] = name or ''
+                        sd[study_id] = name or ""
             self._studies = sd
         pass
 
@@ -47,7 +46,7 @@ class DmpUserInfo:
         empty list if no matches are found
         """
         lst = []
-        prefix = (prefix or '').lower()
+        prefix = (prefix or "").lower()
         studies = self.studies
         if studies is not None:
             for sid, snm in studies.items():
@@ -63,7 +62,6 @@ class DmpUserInfo:
         studies = self.studies
         if studies is not None:
             return {sid: snm for sid, snm in studies.items()}
-
 
     @property
     def expires(self) -> Optional[str]:
@@ -90,4 +88,3 @@ class DmpUserInfo:
         return self._username
 
     pass
-

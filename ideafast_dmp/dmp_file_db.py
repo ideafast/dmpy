@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from typing import Union, Any, Dict, List, Optional, Iterable
@@ -8,9 +7,9 @@ import json
 from pathlib import Path
 from os import PathLike
 
-from .dmp_connection import DmpConnection
-from .dmp_data_cache import DmpDataCache
-from .dmp_utils import stamp_to_text, stamp_to_datetime
+from ideafast_dmp.dmp_connection import DmpConnection
+from ideafast_dmp.dmp_data_cache import DmpDataCache
+from ideafast_dmp.dmp_utils import stamp_to_text, stamp_to_datetime
 
 
 class DmpFileInfo:
@@ -19,16 +18,17 @@ class DmpFileInfo:
     """
 
     def __init__(
-            self,
-            file_id: str,
-            file_name: str,
-            file_size: int,
-            participant_id: str,
-            device_id: str,
-            stamp_start: int,
-            stamp_end: int,
-            stamp_upload: int,
-            study_id: str):
+        self,
+        file_id: str,
+        file_name: str,
+        file_size: int,
+        participant_id: str,
+        device_id: str,
+        stamp_start: int,
+        stamp_end: int,
+        stamp_upload: int,
+        study_id: str,
+    ):
         self.file_id = file_id
         self.file_name = file_name
         self.file_size = file_size
@@ -50,15 +50,15 @@ class DmpFileInfo:
         Create a DmpFileInfo from a record loaded from a study.*.files.json file
         """
         return DmpFileInfo(
-            d['fileId'],
-            d['fileName'],
-            d['fileSize'],
-            d['participantId'],
-            d['deviceId'],
-            d['stampStart'],
-            d['stampEnd'],
-            d['stampUpload'],
-            d.get('studyId')
+            d["fileId"],
+            d["fileName"],
+            d["fileSize"],
+            d["participantId"],
+            d["deviceId"],
+            d["stampStart"],
+            d["stampEnd"],
+            d["stampUpload"],
+            d.get("studyId"),
         )
 
     def path_name(self) -> Path:
@@ -160,10 +160,12 @@ class DmpFileDb:
         :return: A data frame describing all files in the study, or None if the data
         description file was missing.
         """
-        dbfile = self._cache.data_folder / f'study.{study}.files.json'
-        if not dbfile.is_file():  # without this explicit check pandas acts weird for missing files
+        dbfile = self._cache.data_folder / f"study.{study}.files.json"
+        if (
+            not dbfile.is_file()
+        ):  # without this explicit check pandas acts weird for missing files
             return None
-        df = pd.read_json(dbfile, orient='records')
+        df = pd.read_json(dbfile, orient="records")
         return df
 
     def study_file_set(self, study: str) -> DmpFileSet:
@@ -173,20 +175,21 @@ class DmpFileDb:
         :param study: The full study ID
         :return: A DmpFileSet containing the DmpFileInfo records for the study.
         """
-        dbfile = self._cache.data_folder / f'study.{study}.files.json'
+        dbfile = self._cache.data_folder / f"study.{study}.files.json"
         if not dbfile.is_file():
-            raise ValueError(f'File not found: {dbfile}')
-        with dbfile.open('r') as f:
+            raise ValueError(f"File not found: {dbfile}")
+        with dbfile.open("r") as f:
             records = json.load(f)
         return DmpFileSet.from_dicts(records)
 
     @staticmethod
     def filter(
-            files: pd.DataFrame,
-            participant: Optional[Union[str, List[str]]] = None,
-            kind: Optional[Union[str, List[str]]] = None,
-            device: Optional[Union[str, List[str]]] = None,
-            prefix: Optional[Union[str, List[str]]] = None) -> pd.DataFrame:
+        files: pd.DataFrame,
+        participant: Optional[Union[str, List[str]]] = None,
+        kind: Optional[Union[str, List[str]]] = None,
+        device: Optional[Union[str, List[str]]] = None,
+        prefix: Optional[Union[str, List[str]]] = None,
+    ) -> pd.DataFrame:
         """
         Return a filtered version of the input file list
         :param files: The input file list
@@ -218,13 +221,17 @@ class DmpFileDb:
         if prefix is not None:
             if isinstance(prefix, list):
                 prefix = [p.lower() for p in prefix]
-                df = df.loc[df.fileId.apply(lambda s: any(s.startswith(p.lower()) for p in prefix))]
+                df = df.loc[
+                    df.fileId.apply(
+                        lambda s: any(s.startswith(p.lower()) for p in prefix)
+                    )
+                ]
             else:
                 df = df.loc[df.fileId.apply(lambda s: s.startswith(prefix.lower()))]
         return df
 
     @staticmethod
-    def extract_ids(files: pd.DataFrame, fid_column_name: str = 'fileId'):
+    def extract_ids(files: pd.DataFrame, fid_column_name: str = "fileId"):
         """
         Extract the file ids from the data frame that contains a "fileId" column
         """
@@ -249,12 +256,14 @@ class DmpFileDb:
             return True
         return False
 
-    def download(self,
-                 dc: DmpConnection,
-                 dfi: DmpFileInfo,
-                 force_overwrite: bool,
-                 use_id_name: bool = False,
-                 name_override: Optional[Union[str, Path, PathLike]] = None) -> Optional[Path]:
+    def download(
+        self,
+        dc: DmpConnection,
+        dfi: DmpFileInfo,
+        force_overwrite: bool,
+        use_id_name: bool = False,
+        name_override: Optional[Union[str, Path, PathLike]] = None,
+    ) -> Optional[Path]:
         """
         Download a data file from the server
         :param dc: The connection descriptor - representing the currently logged in user
@@ -269,8 +278,7 @@ class DmpFileDb:
         :return: The path to the newly written file, or None if the download was skipped
         """
 
-        raise NotImplementedError('Download not yet implemented')
+        raise NotImplementedError("Download not yet implemented")
         pass
 
     pass
-

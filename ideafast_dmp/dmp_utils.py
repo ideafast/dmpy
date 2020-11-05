@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from typing import Any, List, Dict, Optional, Union
@@ -28,14 +27,14 @@ def save_json_with_backup_old(fnm: Union[str, Path], obj: Any):
     if obj is None:
         # soft-delete: move it to the backup file
         if outfile.exists():
-            bakfile = outfile.with_suffix('.bak')
+            bakfile = outfile.with_suffix(".bak")
             outfile.replace(bakfile)
         pass
     else:
-        with tmpfile.open('w') as tf:
+        with tmpfile.open("w") as tf:
             json.dump(obj, tf, indent=2)
         if outfile.exists():
-            bakfile = outfile.with_suffix('.bak')
+            bakfile = outfile.with_suffix(".bak")
             outfile.replace(bakfile)
         tmpfile.replace(outfile)
     pass
@@ -43,7 +42,7 @@ def save_json_with_backup_old(fnm: Union[str, Path], obj: Any):
 
 def save_json_with_backup(fnm: Union[str, Path], obj: Any):
     with FileTransaction.start(fnm) as trx:
-        with trx.tmp_name.open('w') as tf:
+        with trx.tmp_name.open("w") as tf:
             json.dump(obj, tf, indent=2)
         trx.commit()
     pass
@@ -57,7 +56,7 @@ def stamp_to_text(stamp: Optional[int]) -> Optional[str]:
         return None
     else:
         dt = datetime.fromtimestamp(stamp * 0.001, timezone.utc)
-        return dt.isoformat('T', 'milliseconds')
+        return dt.isoformat("T", "milliseconds")
 
 
 def stamp_to_datetime(stamp: Optional[int]) -> Optional[datetime]:
@@ -81,8 +80,8 @@ class FileTransaction:
 
     def __init__(self, target_file_name: Union[str, Path, PathLike]):
         self._target = Path(target_file_name)
-        self._tmp_name = self._target.with_name(self._target.name + '.tmp')
-        self._bak_name = self._target.with_name(self._target.name + '.bak')
+        self._tmp_name = self._target.with_name(self._target.name + ".tmp")
+        self._bak_name = self._target.with_name(self._target.name + ".bak")
         self._committed = False
         pass
 
@@ -130,10 +129,11 @@ class FileTransaction:
         :return: None
         """
         if self._committed:
-            raise ValueError('The file transaction was already committed')
+            raise ValueError("The file transaction was already committed")
         self._committed = True
         if not self.tmp_name.is_file():
-            # soft-delete: move target to the backup file without creating a new target
+            # soft-delete: move target to the backup file without creating a new
+            # target
             if self.target_name.is_file():
                 self.target_name.replace(self._bak_name)
             pass
