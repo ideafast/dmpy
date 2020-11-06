@@ -670,45 +670,46 @@ def _run_dmp_onefile(study: Optional[str], file_id: str, file_name: Optional[str
 def dmp_app_full_help():
     print(
         """
-dmpapp - tool for retrieving data from the IDEA-FAST Data Management Platform
+This is a tool for retrieving data from the IDEA-FAST Data Management Platform (DMP).
+The following provides an overview of each arguments for the Command Line Interface (CLI).
 
-dmpapp state
+state
     Check your current login state, and (cached) study access rights.
 
-dmpapp configure <data_path>
+configure <data_path>
     Configure (or reconfigure) the folder where downloaded data and metadata will be
     stored
 
-dmpapp login [<username>]
+login [<username>]
     Log in into the server. If 'username' is given, that user will be logged in,
     otherwise the most recent user will be re-logged. This command will ask
     for your password and authentication code.
 
-dmpapp refresh
+refresh
     Refresh your cached login information and access rights. This can also be useful
     to test if your login information is still valid
 
-dmpapp study <study_id>
+study <study_id>
     Select the default study to be used by other commands. You only need to provide
     the first few characters of the study id, as long as it uniquely identifies a
     study. Valid study IDs that you have access to are listed in the output of
     'dmpapp state' (and, by extension, 'dmpapp refresh' and 'dmpapp login')
 
-dmpapp files {<study_id>}
+files {<study_id>}
     Download the current list of available files from the server for the given study
     or studies. If you do not provide any study IDs, the default study ID configured
     with 'dmpapp study' is used.
     The lists are saved in the data folder in both JSON and CSV formats. The JSON
     version is used by other commands, so don't modify it directly.
 
-dmpapp list [-p <participant>*] [-k <devicekind>*] [-d <deviceid>*] [-id <fileid>*]
+list [-p <participant>*] [-k <devicekind>*] [-d <deviceid>*] [-id <fileid>*]
     List or aggregate file information for the current study, as filtered by the
     arguments. Use the '-p', '-k', '-d', '-id' flags without any arguments to include
     that field in the output without filtering.
     In particular, use '-id' to include file details instead of grouping.
     <fileid> can be a prefix, other selectors must be exact
 
-dmpapp sync [-p <participant>*] [-k <devicekind>*] [-d <deviceid>*] [-id <fileid>*] [-cap <n>]
+sync [-p <participant>*] [-k <devicekind>*] [-d <deviceid>*] [-id <fileid>*] [-cap <n>]
     Download files selected by the filter options that were not yet downloaded (or were
     updated)
     The filters are the same as the 'list' command - use that to preview your selection.
@@ -718,9 +719,8 @@ dmpapp sync [-p <participant>*] [-k <devicekind>*] [-d <deviceid>*] [-id <fileid
     By default only 1 file is downloaded pr invocation, equivalent to -cap 1. Set
     the -cap option to a higher number to download multiple files in one go
 
-dmpapp onefile -id <fileid> -out <filename>
+onefile -id <fileid> -out <filename>
     Download one file. This command is intended for testing only
-
 """
     )
     pass
