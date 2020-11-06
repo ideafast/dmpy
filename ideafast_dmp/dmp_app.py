@@ -18,6 +18,8 @@ import pandas as pd
 from pandas.core.groupby.generic import DataFrameGroupBy
 import itertools
 
+_app_name = 'dmpapp'
+
 
 def _run_dmp_state():
     cache = DmpDataCache(None)
@@ -29,7 +31,7 @@ def _run_dmp_state():
         )
     else:
         print(f"    Data folder: {Fore.LIGHTGREEN_EX}{cache_folder_name}{Fore.RESET}")
-    with DmpConnection("dmpapp") as dc:
+    with DmpConnection(_app_name) as dc:
         login_state = dc.login_state
         print(
             f"     {Fore.LIGHTBLACK_EX}State file: {login_state.appstate.state_file_name}{Fore.RESET}"
@@ -86,7 +88,7 @@ def _run_dmp_study(study_prefix: str):
     cbl = Fore.LIGHTBLUE_EX
     c0 = Fore.RESET
     ok = False
-    with DmpConnection("dmpapp") as dc:
+    with DmpConnection(_app_name) as dc:
         login_state = dc.login_state
         if not dc.is_logged_in:
             print(f"{crd}You are not logged in{c0} (Cannot validate study IDs)")
@@ -122,7 +124,7 @@ def _run_dmp_login(username: Optional[str]):
     cyw = Fore.LIGHTYELLOW_EX
     cbl = Fore.LIGHTBLUE_EX
     c0 = Fore.RESET
-    with DmpConnection("dmpapp") as dc:
+    with DmpConnection(_app_name) as dc:
         login_state = dc.login_state
         username = username or login_state.username
         if username is None or username == "":
@@ -168,39 +170,9 @@ def _run_dmp_refresh():
     cyw = Fore.LIGHTYELLOW_EX
     cbl = Fore.LIGHTBLUE_EX
     c0 = Fore.RESET
-    with DmpConnection("dmpapp") as dc:
-        login_state = dc.login_state
-        if not dc.is_logged_in:
-            print(f"{crd}You are not logged in{c0}")
-        else:
-            print(f"{cor}Refreshing information from server...{c0}")
-            uinf = dc.user_info_request()
-            info = uinf.content
-            dui = DmpUserInfo(info)
-            if dui.username != login_state.username:
-                raise ValueError(
-                    f"User name in response ({dui.username}) does not match state user name ({login_state.username})"
-                )
-            if dui.studies is None:
-                raise ValueError("No study information present in response - aborting")
-            print(f"{cor}Updating user state...{c0}")
-            login_state.change_user(login_state.username, login_state.cookie, info)
-    _run_dmp_state()
-    pass
-
-
-def _run_dmp_refresh2():
-    ccy = Fore.LIGHTCYAN_EX
-    crd = Fore.LIGHTRED_EX
-    cgn = Fore.LIGHTGREEN_EX
-    cor = Fore.YELLOW
-    cyw = Fore.LIGHTYELLOW_EX
-    cbl = Fore.LIGHTBLUE_EX
-    c0 = Fore.RESET
-    appname = "dmpapp"
-    credentials = DmpCredentials.from_state(appname)
-    with DmpConnection(appname, credentials=credentials) as dc:
-        login_state = DmpLoginState(appname)
+    credentials = DmpCredentials.from_state(_app_name)
+    with DmpConnection(_app_name, credentials=credentials) as dc:
+        login_state = DmpLoginState(_app_name)
         if not login_state.is_logged_in:
             print(f"{crd}You are not logged in{c0}")
         else:
@@ -378,14 +350,13 @@ def _get_filtered_list(
     c0 = Fore.RESET
     study0 = study
     if study is None or study == "":
-        with DmpConnection("dmpapp") as dc:
-            login_state = dc.login_state
-            study = login_state.default_study
-            if study is None:
-                print(
-                    f'{crd}No default study ID configured{c0} (use "dmpapp study" to do so)'
-                )
-                return None
+        login_state = DmpLoginState('dmpapp')
+        study = login_state.default_study
+        if study is None:
+            print(
+                f'{crd}No default study ID configured{c0} (use "dmpapp study" to do so)'
+            )
+            return None
 
     cache = DmpDataCache(None)
     db = DmpFileDb(cache)
@@ -912,8 +883,8 @@ def run_dmp_app(*arguments: str):
             _run_dmp_login(args.username)
         elif cmd == "refresh":
             _run_dmp_refresh()
-        elif cmd == "refresh2":
-            _run_dmp_refresh2()
+        # elif cmd == "refresh2":
+        #     _run_dmp_refresh2()
         elif cmd == "files":
             _run_dmp_files(args.studyid)
         elif cmd == "configure":
