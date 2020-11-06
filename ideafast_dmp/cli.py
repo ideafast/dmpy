@@ -7,3 +7,8 @@ def main():
     args = sys.argv
     args = args[1:]
     run_dmp_app(*args)
+
+
+if __name__ == "__main__":
+    main()
+

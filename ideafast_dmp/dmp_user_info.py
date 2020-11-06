@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone, tzinfo
 
 class DmpUserInfo:
     def __init__(self, raw: Dict[str, Any]):
+        self._userid = safe_dict_get(raw, "id")
         self._username = safe_dict_get(raw, "username")
         self._firstname = safe_dict_get(raw, "firstname")
         self._lastname = safe_dict_get(raw, "lastname")
@@ -86,5 +87,9 @@ class DmpUserInfo:
     @property
     def username(self) -> Optional[str]:
         return self._username
+
+    @property
+    def userid(self) -> Optional[str]:
+        return self._userid
 
     pass

@@ -1,13 +1,16 @@
 # interaction with the DMP server
 
+from __future__ import annotations
+
 import http.client
 import json
 import re
 from typing import Dict, Any, Optional, List, Union, Callable
 from http.cookies import SimpleCookie, Morsel
 from pathlib import Path
+from abc import ABC, abstractmethod, abstractproperty
 
-from ideafast_dmp import dmp_resources
+from ideafast_dmp.dmp_resources import read_text_resource
 from ideafast_dmp.dmp_login_state import DmpLoginState
 from ideafast_dmp.dmp_utils import safe_dict_get, safe_list_get, stamp_to_text
 
@@ -62,7 +65,7 @@ class DmpResponse:
     """
 
     def __init__(
-        self, content: Dict[str, Any], status: int, cookies: Optional[Dict[str, str]]
+            self, content: Dict[str, Any], status: int, cookies: Optional[Dict[str, str]]
     ):
         self._status = status
         self._cookies = cookies or dict()
@@ -91,12 +94,107 @@ class DmpResponse:
         return self._content
 
 
+class DmpCredentials(ABC):
+
+    def __init__(self):
+        """
+        Create a credentials base instance
+        """
+        pass
+
+    def add_headers(self, headers: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Add the authentication headers to the 'headers' dictionary and returns it.
+        """
+        if headers is None:
+            headers = {}
+        return self._add_headers(headers)
+
+    @abstractmethod
+    def _add_headers(self, headers: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Subclasses add the HTTP authentication headers here
+        """
+        raise NotImplementedError('this is an abstract method')
+
+    @property
+    @abstractmethod
+    def is_logged_in(self) -> bool:
+        """
+        Return true if these credentials represent a logged in user (as
+        far as can be known without checking the server).
+        Returning false indicates an anonymous user.
+        """
+        raise NotImplementedError('this is an abstract method')
+
+    @property
+    @abstractmethod
+    def user_name(self) -> str:
+        """
+        Return the user name for the logged in user.
+        """
+        raise NotImplementedError('this is an abstract method')
+
+    @property
+    @abstractmethod
+    def user_id(self) -> str:
+        """
+        Return the user ID for the logged in user. Note that this is an
+        identifier that is typically not known by the user themselves.
+        """
+        raise NotImplementedError('this is an abstract method')
+
+    @staticmethod
+    def from_state(appname: str) -> DmpCredentials:
+        return StateCredentials(appname)
+
+    pass
+
+
+class StateCredentials(DmpCredentials):
+
+    def __init__(self, appname: str):
+        super().__init__()
+        self._loginstate = DmpLoginState(appname)
+
+    def _add_headers(self, headers: Dict[str, Any]) -> Dict[str, Any]:
+        if not self.is_logged_in:
+            raise ValueError("You are not logged in")
+        headers["Cookie"] = "connect.sid=" + self._loginstate.cookie
+        return headers
+
+    @property
+    def is_logged_in(self) -> bool:
+        """
+        True if login info is available. Whether or not that info is valid is up
+        to the server to decide
+        """
+        return self._loginstate.is_logged_in
+
+    @property
+    def user_name(self) -> str:
+        """
+        Return the user name for the logged in user.
+        """
+        return self._loginstate.username
+
+    @property
+    def user_id(self) -> str:
+        """
+        Return the user ID for the logged in user. Note that this is an
+        identifier that is typically not known by the user themselves.
+        """
+        if self._loginstate.is_logged_in:
+            info = self._loginstate.user_info
+            return info.userid if info is not None else None
+
+
 class DmpConnection:
     """
     Represents a connection to the DMP server
     """
 
-    def __init__(self, appname: str, server: str = None):
+    def __init__(self, appname: str, credentials: Optional[DmpCredentials] = None, server: str = None):
         """
         Create a connection to the DMP server. This object acts as its own "context manager",
         so use this constructor in a "with" block
@@ -106,8 +204,13 @@ class DmpConnection:
         if server is None:
             server = "data.ideafast.eu"
         self._server = server
+        self._credentials = credentials
         self._conn = http.client.HTTPSConnection(self._server)
-        self._loginstate = DmpLoginState(appname)
+        if self._credentials is None:
+            # TODO: remove this backward compatibility stub
+            self._loginstate = DmpLoginState(appname)
+        else:
+            self._loginstate = None
         pass
 
     def __enter__(self):
@@ -136,27 +239,34 @@ class DmpConnection:
         True if login info is available. Whether or not that info is valid is up
         to the server to decide
         """
-        return self._loginstate.is_logged_in
+        if self._credentials is not None:
+            return self._credentials.is_logged_in
+        else:
+            # TODO: remove this backward compatibility stub
+            return self._loginstate.is_logged_in
 
     def graphql_request(
-        self, query: str, variables: Dict[str, Any], use_cookie: bool = True
+            self, query: str, variables: Dict[str, Any], authenticated: bool = True
     ) -> DmpGqlResponse:
         """
         Initiate a request to the DMP server's GraphQL query endpoint
         :param query: The GraphQL query text
         :param variables: The query parameters
-        :param use_cookie: (default true) If true, include the login cookie in the query
-        and fail if there was no login yet. If false, do not set that cookie (that is:
-        send an anonymous query). This should only be false for login requests
+        :param authenticated: (default true) If true, add the authentication headers
+        and fail if those are missing
         :return: The full JSON text from the response
         """
         headers = {
             "Content-Type": "application/json",
         }
-        if use_cookie:
+        if authenticated:
             if not self.is_logged_in:
                 raise ValueError("You are not logged in")
-            headers["Cookie"] = "connect.sid=" + self._loginstate.cookie
+            if self._credentials is not None:
+                headers = self._credentials.add_headers(headers)
+            else:
+                # TODO: remove this backward compatibility stub
+                headers["Cookie"] = "connect.sid=" + self._loginstate.cookie
         payload = {"query": query}
         if variables is not None:
             payload["variables"] = variables
@@ -171,10 +281,10 @@ class DmpConnection:
         return DmpGqlResponse(res.status, data.decode("utf-8"), cookies)
 
     def download_file(
-        self,
-        file_id: str,
-        dest: Union[Path, str],
-        progress: Optional[Callable[[int], None]] = None,
+            self,
+            file_id: str,
+            dest: Union[Path, str],
+            progress: Optional[Callable[[int], None]] = None,
     ) -> int:
         """
         Download a single file from the server to the given local destination file (overwriting it if it exists)
@@ -188,11 +298,11 @@ class DmpConnection:
         if not dest.is_absolute():
             raise ValueError(f"Expecting an absolute path as destination file")
         if (
-            re.match(
-                r"^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$",
-                file_id,
-            )
-            is None
+                re.match(
+                    r"^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$",
+                    file_id,
+                )
+                is None
         ):
             raise ValueError(f'Not a valid file ID: "{file_id}"')
         if not self.is_logged_in:
@@ -200,6 +310,7 @@ class DmpConnection:
         directory = dest.parent
         if not directory.is_dir():
             directory.mkdir(parents=True)
+        # TODO: replace with credentials based code
         headers = {"Cookie": "connect.sid=" + self._loginstate.cookie}
         self._conn.request("GET", f"/file/{file_id}", None, headers)
         res: http.client.HTTPResponse = self._conn.getresponse()
@@ -229,11 +340,17 @@ class DmpConnection:
         valid by the server.
         :return: A response object. The content is the user info object
         """
-        query = dmp_resources.read_text_resource("dmp_userinfo.graphql")
-        info = self._loginstate.info
-        if info is None or "id" not in info:
-            raise ValueError("You are not logged in")
-        userid: str = info["id"]
+        query = read_text_resource("dmp_userinfo.graphql")
+        if self._credentials is not None:
+            if not self.is_logged_in:
+                raise ValueError("You are not logged in")
+            userid: str = self._credentials.user_id
+        else:
+            # TODO: disable this backward compat code
+            info = self._loginstate.info
+            if info is None or "id" not in info:
+                raise ValueError("You are not logged in")
+            userid: str = info["id"]
         variables = {"userid": userid}
         response = self.graphql_request(query, variables)
         if response.status != 200:
@@ -267,29 +384,34 @@ class DmpConnection:
             device_id: Optional[str] = safe_dict_get(description, "deviceId")
             device_kind = device_id[0:3] if device_id is not None else None
             ret = {
-                "fileId": fe["id"],
-                "fileName": fe.get("fileName"),
-                "fileSize": fe["fileSize"],
+                "fileId":        fe["id"],
+                "fileName":      fe.get("fileName"),
+                "fileSize":      fe["fileSize"],
                 # 'description': description,
                 "participantId": safe_dict_get(description, "participantId"),
-                "deviceKind": device_kind,
-                "deviceId": device_id,
-                "timeStart": stamp_to_text(start_stamp),
-                "timeEnd": stamp_to_text(end_stamp),
-                "timeUpload": stamp_to_text(utt),
-                "stampStart": start_stamp,
-                "stampEnd": end_stamp,
-                "stampUpload": utt,
-                "uploadedBy": fe.get("uploadedBy"),
-                "studyId": fe.get("studyId"),
-                "studyName": studyname,
+                "deviceKind":    device_kind,
+                "deviceId":      device_id,
+                "timeStart":     stamp_to_text(start_stamp),
+                "timeEnd":       stamp_to_text(end_stamp),
+                "timeUpload":    stamp_to_text(utt),
+                "stampStart":    start_stamp,
+                "stampEnd":      end_stamp,
+                "stampUpload":   utt,
+                "uploadedBy":    fe.get("uploadedBy"),
+                "studyId":       fe.get("studyId"),
+                "studyName":     studyname,
             }
             return ret
 
-        query = dmp_resources.read_text_resource("dmp_study_files.graphql")
-        info = self._loginstate.info
-        if info is None or "id" not in info:
-            raise ValueError("You are not logged in")
+        query = read_text_resource("dmp_study_files.graphql")
+        if self._credentials is not None:
+            if not self._credentials.is_logged_in:
+                raise ValueError("You are not logged in")
+        else:
+            info = self._loginstate.info
+            # TODO: remove this backward compatibility stub
+            if info is None or "id" not in info:
+                raise ValueError("You are not logged in")
         variables = {
             "studyId": study_id,
         }
@@ -302,6 +424,7 @@ class DmpConnection:
         study_name: str = safe_dict_get(study, "name")
         files: List[Dict[str, Any]] = safe_dict_get(study, "files")
         if files is None:
+            # TODO: remove this backward dependency
             self._loginstate.state_host.save_state("last_error_data", content)
             raise ValueError(
                 'No file information in response (dump saved to state "last_error_data")'
@@ -317,11 +440,11 @@ class DmpConnection:
         :param totp: The authentication code
         :return: On success: a DmpResponse with the user info and cookie set
         """
-        query = dmp_resources.read_text_resource("dmp_login.graphql")
+        query = read_text_resource("dmp_login.graphql")
         variables = {
             "username": username,
             "password": password,
-            "totp": totp,
+            "totp":     totp,
         }
         # print(f'VARS = "{json.dumps(variables)}"')
         response = self.graphql_request(query, variables, False)
@@ -339,6 +462,7 @@ class DmpConnection:
         retval = DmpResponse(user, response.status, cookies)
         return retval
 
+    # TODO: remove this backward compatibility stub
     @property
     def login_state(self) -> DmpLoginState:
         """
