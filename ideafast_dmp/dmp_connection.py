@@ -222,6 +222,68 @@ class DmpConnection:
         tmp.replace(dest)
         return res.status
 
+    def upload(self, studyId: str, path: Path) -> Dict:
+        """
+        ??
+        :return: A response object. The content is the user info object
+        """
+        # TODO: should not be imported here of course
+        import requests
+
+        # TODO: is uploading large (>3GB?!) files
+        from requests_toolbelt.multipart.encoder import MultipartEncoder
+
+        #  TODO: file validation to ensure path.name (the filename) is correctly formatted.
+        # we can then use the filename metadata to populate description below ...
+
+        # TODO: we will want to receive ParticipantID, DeviceID, Start/End times (possibly?)
+        variables = {
+            "studyId": studyId,
+            # TODO REQUIRED!!
+            # TODO: note, seems to be no server validation on participant/device IDs?
+            "description": json.dumps(
+                {
+                    "participantId": "K9J9J9J",
+                    "deviceId": "MMM9J9J9J",
+                    "startDate": 1593817200000,
+                    "endDate": 1595286000000,
+                }
+            ),
+        }
+
+        query = dmp_resources.read_text_resource("upload.graphql").replace("\n", " ")
+
+        _operations = {
+            "operationName": "uploadFile",
+            "variables": variables,
+            "query": query,
+        }
+
+        multipart_data = MultipartEncoder(
+            fields={
+                "operations": json.dumps(_operations),
+                "map": json.dumps({"fileName": ["variables.file"]}),
+                "fileName": (
+                    path.name,
+                    open(
+                        path,
+                        "rb",
+                    ),
+                    "application/octet-stream",
+                ),
+            }
+        )
+
+        cookie = "SECRET"
+        headers = {
+            "Content-Type": multipart_data.content_type,
+            "Cookie": f"connect.sid=s%{cookie}",
+        }
+
+        url = "https://data.ideafast.eu/graphql"
+        response = requests.post(url, data=multipart_data, headers=headers)
+        return response.json()
+
     def user_info_request(self) -> DmpResponse:
         """
         Request the information record for the "currently logged in user" from
