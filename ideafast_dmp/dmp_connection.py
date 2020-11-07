@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 from ideafast_dmp.dmp_login_state import DmpLoginState
 from ideafast_dmp.dmp_utils import safe_dict_get, safe_list_get, stamp_to_text
-
+from ideafast_dmp.helpers import FileUploadPayload
 from ideafast_dmp import dmp_resources
 
 
@@ -222,7 +222,7 @@ class DmpConnection:
         tmp.replace(dest)
         return res.status
 
-    def upload(self, studyId: str, path: Path) -> Dict:
+    def upload(self, payload: FileUploadPayload) -> Dict:
         """
         ??
         :return: A response object. The content is the user info object
@@ -233,24 +233,8 @@ class DmpConnection:
         # TODO: is uploading large (>3GB?!) files
         from requests_toolbelt.multipart.encoder import MultipartEncoder
 
-        #  TODO: file validation to ensure path.name (the filename) is correctly formatted.
-        # we can then use the filename metadata to populate description below ...
-
-        # TODO: we will want to receive ParticipantID, DeviceID, Start/End times (possibly?)
-        variables = {
-            "studyId": studyId,
-            # TODO REQUIRED!!
-            # TODO: note, seems to be no server validation on participant/device IDs?
-            "description": json.dumps(
-                {
-                    "participantId": "K9J9J9J",
-                    "deviceId": "MMM9J9J9J",
-                    "startDate": 1593817200000,
-                    "endDate": 1595286000000,
-                }
-            ),
-        }
-
+        variables = payload.dump_variables()
+        # TODO: possibly pull query and _operations into the FileUploadPayload dataclass
         query = dmp_resources.read_text_resource("upload.graphql").replace("\n", " ")
 
         _operations = {
@@ -264,9 +248,9 @@ class DmpConnection:
                 "operations": json.dumps(_operations),
                 "map": json.dumps({"fileName": ["variables.file"]}),
                 "fileName": (
-                    path.name,
+                    payload.path.name,
                     open(
-                        path,
+                        payload.path,
                         "rb",
                     ),
                     "application/octet-stream",

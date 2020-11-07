@@ -1,9 +1,9 @@
 import os
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List
 
 from ideafast_dmp.dmp_connection import DmpConnection
+from ideafast_dmp.helpers import FileUploadPayload
 
 USERNAME = os.environ.get("USERNAME", None)
 PASSWORD = os.environ.get("PASSWORD", None)
@@ -34,13 +34,15 @@ class ideafast_dmp:
             # TODO: validation here?
             return dc.study_files_request(study_id)
 
-    def upload(self, study_id: str, path: Path) -> str:
+    # TODO: we should have helper methods to validate DeviceID/PatientID, etc
+
+    def upload(self, payload: FileUploadPayload) -> str:
         """Upload a single file to the DMP."""
         response = None
         with DmpConnection("dmpapp") as dc:
             # TODO: we will need to pass a lot more details ...
             # possibly use a dataclass to store/access data being sent?
-            response = dc.upload(study_id, path)
+            response = dc.upload(payload)
         return response or {}
 
 
@@ -48,5 +50,10 @@ def main():
     idf_dmpy = ideafast_dmp()
     study_id = "f4d96235-4c62-4910-a182-73836554036c"
     path = Path("/Users/jawrainey/code/ideafast/ideafast-dmp/example.png")
-    response = idf_dmpy.upload(study_id, path)
+    partientID = "K9J9J9J"
+    deviceID = "MMM9J9J9J"
+    startWear = 1593817200000
+    endWear = 1595286000000
+    payload = FileUploadPayload(study_id, path, partientID, deviceID, startWear, endWear)
+    response = idf_dmpy.upload(payload)
     print(response)
