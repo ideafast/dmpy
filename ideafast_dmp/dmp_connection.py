@@ -224,28 +224,24 @@ class DmpConnection:
 
     def upload(self, payload: FileUploadPayload) -> Dict:
         """
-        ??
-        :return: A response object. The content is the user info object
+        Upload a single file to the DMP.
+        :param payload: The validated FileUploadPayload to send.
+        :return: A dictionary containing
         """
         # TODO: should not be imported here of course
         import requests
 
-        # TODO: is uploading large (>3GB?!) files
+        # TODO: verify works for large (5GB) files
         from requests_toolbelt.multipart.encoder import MultipartEncoder
 
-        variables = payload.dump_variables()
-        # TODO: possibly pull query and _operations into the FileUploadPayload dataclass
-        query = dmp_resources.read_text_resource("upload.graphql").replace("\n", " ")
-
-        _operations = {
-            "operationName": "uploadFile",
-            "variables": variables,
-            "query": query,
-        }
+        # TODO: we could do payload.validate() that raises error if input is invalid?
 
         multipart_data = MultipartEncoder(
             fields={
-                "operations": json.dumps(_operations),
+                "operations": payload.operations(),
+                # TODO: determine if this can be removed/simplified from WP5?
+                # Note: unclear how uploading many files would work,
+                # could 'map' be removed and next para be 'file' instead?
                 "map": json.dumps({"fileName": ["variables.file"]}),
                 "fileName": (
                     payload.path.name,
@@ -266,6 +262,8 @@ class DmpConnection:
 
         url = "https://data.ideafast.eu/graphql"
         response = requests.post(url, data=multipart_data, headers=headers)
+
+        # TODO: error handling ...
         return response.json()
 
     def user_info_request(self) -> DmpResponse:

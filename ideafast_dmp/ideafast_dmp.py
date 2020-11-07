@@ -48,12 +48,12 @@ class ideafast_dmp:
 
 def main():
     idf_dmpy = ideafast_dmp()
-    study_id = "f4d96235-4c62-4910-a182-73836554036c"
+    studyID = "f4d96235-4c62-4910-a182-73836554036c"
     path = Path("/Users/jawrainey/code/ideafast/ideafast-dmp/example.png")
     partientID = "K9J9J9J"
     deviceID = "MMM9J9J9J"
     startWear = 1593817200000
     endWear = 1595286000000
-    payload = FileUploadPayload(study_id, path, partientID, deviceID, startWear, endWear)
+    payload = FileUploadPayload(studyID, path, partientID, deviceID, startWear, endWear)
     response = idf_dmpy.upload(payload)
     print(response)

@@ -1,6 +1,9 @@
 import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict
+
+from ideafast_dmp.dmp_resources import read_text_resource
 
 
 @dataclass
@@ -8,13 +11,13 @@ class FileUploadPayload:
     """The payload required to upload a file"""
 
     studyID: str
-    path: int
+    path: Path
     patientID: str
     deviceID: str
     startWear: int
     endWear: int
 
-    def dump_variables(self) -> Dict:
+    def variables(self) -> Dict:
         """Dumps variables in a format suitable for DMP API,
         i.e. does not include file path."""
         return {
@@ -28,3 +31,13 @@ class FileUploadPayload:
                 }
             ),
         }
+
+    def operations(self) -> Dict:
+        """Constructs the upload operations and query to send to the API."""
+        return json.dumps(
+            {
+                "operationName": "uploadFile",
+                "variables": self.variables(),
+                "query": read_text_resource("upload.graphql").replace("\n", " "),
+            }
+        )
