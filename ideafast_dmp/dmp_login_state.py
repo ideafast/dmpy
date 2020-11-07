@@ -1,9 +1,8 @@
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 from ideafast_dmp.app_state_persistence.app_state import AppState, NamedAppState
 from ideafast_dmp.dmp_user_info import DmpUserInfo
-from ideafast_dmp.dmp_utils import safe_dict_get, safe_list_get
 
 
 class DmpLoginState:
@@ -118,7 +117,7 @@ class DmpLoginState:
         if username is None:
             if cookie is not None:
                 raise ValueError(
-                    f"Cannot login without providing a user name at the same time"
+                    "Cannot login without providing a user name at the same time"
                 )
             self._reset(False)
             self._save()
@@ -153,7 +152,7 @@ class DmpLoginState:
             ids = info.matching_study_ids(study_prefix)
             if len(ids) == 0:
                 raise ValueError(
-                    f'Cannot find an accessible study in your login data for study prefix "{study_prefix}"'
+                    f'Accessible study not found in your login data for study prefix "{study_prefix}"'
                 )
             if len(ids) > 1:
                 raise ValueError(
@@ -176,7 +175,7 @@ class DmpLoginState:
         else:
             if self.username is None:
                 raise ValueError(
-                    'Cannot login without establishing a user name first (hint: use "change_user" instead of "login")'
+                    'Cannot login without a username (hint: use "change_user" instead of "login")'
                 )
             self.change_user(self.username, cookie, info)
 

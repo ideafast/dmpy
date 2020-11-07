@@ -3,10 +3,11 @@
 # This file contains the code related to the folder caching and
 # indexing downloaded data files
 
-from typing import Optional, Dict, List, Union, Any
-from ideafast_dmp.app_state_persistence.app_state import NamedAppState, AppState
-from ideafast_dmp.dmp_utils import safe_dict_get
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+from ideafast_dmp.app_state_persistence.app_state import AppState
+from ideafast_dmp.dmp_utils import safe_dict_get
 
 
 class DmpDataCache:

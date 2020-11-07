@@ -17,12 +17,28 @@ all from within your terminal. The expanded documentation is [here](CLI.md) othe
 please install both on your local machine. Python 3.8 is used by default and can
 be installed as follows:
 
-    pyenv install 3.8.0 && pyenv global 3.8.0
+```sh
+$ pyenv install 3.8.0 && pyenv global 3.8.0
+```
 
 Then install all dependencies for this project through poetry by running:
 
-    poetry install
+```sh
+$ poetry install
+```
 
 To use the virtual environment poetry created:
 
-    poetry shell
+```sh
+$ poetry shell
+```
+
+[Nox](https://nox.thea.codes/) is installed as a development dependency and is used used to simplfy running tests, code formatting, and linting. To run all nox commands (black, lint, tests):
+
+```sh
+$ poetry run nox -r
+```
+
+```sh
+$ poetry run nox -rs black
+```

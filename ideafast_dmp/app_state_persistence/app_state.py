@@ -4,12 +4,12 @@
 
 from __future__ import annotations
 
-import os
 import json
-from pathlib import Path
-from typing import Any, Optional, Union
+import os
 from datetime import datetime, timezone
 from os import PathLike
+from pathlib import Path
+from typing import Any, Optional, Union
 
 
 class AppState:
@@ -116,12 +116,11 @@ class AppState:
         """
         if not (name.isidentifier()):
             raise ValueError(f'"{name}" is not a a valid app state identifier')
-        # The type annotation is to stop PyCharm 2020.1 from showing incorrect use warnings
         statefile: Union[Path, PathLike] = self.home.joinpath(name + ".json")
         if not (statefile.exists()):
             return None
         else:
-            return os.path.getmtime(statefile)
+            return os.path.getmtime(statefile) if statefile.exists() else None
 
     def state_datetime(self, name: str) -> Optional[datetime]:
         """
@@ -132,7 +131,7 @@ class AppState:
         """
         if not (name.isidentifier()):
             raise ValueError(f'"{name}" is not a a valid app state identifier')
-        # The type annotation is to stop PyCharm 2020.1 from showing incorrect use warnings
+        # Type annotation is to stop PyCharm 2020.1 from showing warnings
         statefile: Union[Path, PathLike] = self.home.joinpath(name + ".json")
         if not (statefile.exists()):
             return None

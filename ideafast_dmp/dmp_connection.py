@@ -3,13 +3,14 @@
 import http.client
 import json
 import re
-from typing import Dict, Any, Optional, List, Union, Callable
-from http.cookies import SimpleCookie, Morsel
+from http.cookies import Morsel, SimpleCookie
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Union
 
-from ideafast_dmp import dmp_resources
 from ideafast_dmp.dmp_login_state import DmpLoginState
 from ideafast_dmp.dmp_utils import safe_dict_get, safe_list_get, stamp_to_text
+
+from ideafast_dmp import dmp_resources
 
 
 class DmpGqlResponse:
@@ -177,7 +178,7 @@ class DmpConnection:
         progress: Optional[Callable[[int], None]] = None,
     ) -> int:
         """
-        Download a single file from the server to the given local destination file (overwriting it if it exists)
+        Download and overwrite a single file from the server to the given local destination file
         :param file_id: The full file id of the file to download
         :param dest: The destination file name. This must be an absolute path.
         :param progress: An optional progress callback. If not None, this is called repeatedly with the
@@ -186,7 +187,7 @@ class DmpConnection:
         """
         dest = Path(dest)
         if not dest.is_absolute():
-            raise ValueError(f"Expecting an absolute path as destination file")
+            raise ValueError("Expecting an absolute path as destination file")
         if (
             re.match(
                 r"^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$",
@@ -332,10 +333,10 @@ class DmpConnection:
         data = safe_dict_get(content, "data")
         user = safe_dict_get(data, "login")
         if user is None:
-            raise ValueError(f"Login failed")
+            raise ValueError("Login failed")
         cookies = response.cookies_as_dict()
         if "connect.sid" not in cookies:
-            raise ValueError(f"Login request did not return a login token / cookie")
+            raise ValueError("Login request did not return a login token / cookie")
         retval = DmpResponse(user, response.status, cookies)
         return retval
 

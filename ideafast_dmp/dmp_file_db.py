@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from typing import Union, Any, Dict, List, Optional, Iterable
+import json
+from os import PathLike
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Union
+
 
 import pandas as pd
-import json
-from pathlib import Path
-from os import PathLike
-
 from ideafast_dmp.dmp_connection import DmpConnection
 from ideafast_dmp.dmp_data_cache import DmpDataCache
-from ideafast_dmp.dmp_utils import stamp_to_text, stamp_to_datetime
+from ideafast_dmp.dmp_utils import stamp_to_text
 
 
 class DmpFileInfo:
@@ -235,7 +235,7 @@ class DmpFileDb:
         """
         Extract the file ids from the data frame that contains a "fileId" column
         """
-        for idx, row in files.iterrows():
+        for _, row in files.iterrows():
             fid = row[fid_column_name]
             if fid is not None:
                 yield fid
@@ -271,10 +271,10 @@ class DmpFileDb:
         :param force_overwrite: Determines the behaviour when the output file already exists.
         If True, the file is re-downloaded and overwritten. If False, the download is skipped,
         and None is returned.
-        :param use_id_name: Default False. If True, use a file name based on file ID instead of the
-        original file name
-        :param name_override: If not None then explictly use this file name instead of the automatically
-        determined one
+        :param use_id_name: Default False. If True, use a file name based
+        on file ID instead of the original file name
+        :param name_override: If not None then explictly use this file
+        name instead of the automatically determined one
         :return: The path to the newly written file, or None if the download was skipped
         """
 

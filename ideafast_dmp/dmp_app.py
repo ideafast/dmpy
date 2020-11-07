@@ -1,31 +1,29 @@
-from typing import Dict, Any, Optional, List, Union
-import json
-import re
 import argparse
-from getpass import getpass
-import colorama
-from colorama import Fore, Back, Style
-
-from ideafast_dmp.app_state_persistence.app_state import AppState, NamedAppState
-from ideafast_dmp.dmp_connection import DmpConnection, DmpLoginState
-from ideafast_dmp.dmp_user_info import DmpUserInfo
-from ideafast_dmp.dmp_utils import save_json_with_backup, FileTransaction
-from ideafast_dmp.dmp_data_cache import DmpDataCache
-from ideafast_dmp.dmp_file_db import DmpFileDb, DmpFileSet, DmpFileInfo
-from pathlib import Path
-
-import pandas as pd
-from pandas.core.groupby.generic import DataFrameGroupBy
 import itertools
+import re
+from getpass import getpass
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+import colorama
+import pandas as pd
+from colorama import Fore, Style
+from pandas.core.groupby.generic import DataFrameGroupBy
+
+from ideafast_dmp.dmp_connection import DmpConnection
+from ideafast_dmp.dmp_data_cache import DmpDataCache
+from ideafast_dmp.dmp_file_db import DmpFileDb, DmpFileInfo
+from ideafast_dmp.dmp_user_info import DmpUserInfo
+from ideafast_dmp.dmp_utils import FileTransaction, save_json_with_backup
 
 
 def _run_dmp_state():
     cache = DmpDataCache(None)
     cache_folder_name = cache.data_folder_raw
     if cache_folder_name is None or cache_folder_name == "":
-        print(f"    Data folder: {Fore.LIGHTRED_EX}Not Configured{Fore.RESET}")
+        print(f"Data folder: {Fore.LIGHTRED_EX}Not Configured{Fore.RESET}")
         print(
-            f'                 {Fore.LIGHTYELLOW_EX}Please run "dmpapp configure <datafolder>"{Fore.RESET}'
+            f'{Fore.LIGHTYELLOW_EX}Please run "dmpapp configure <datafolder>"{Fore.RESET}'
         )
     else:
         print(f"    Data folder: {Fore.LIGHTGREEN_EX}{cache_folder_name}{Fore.RESET}")
@@ -45,11 +43,9 @@ def _run_dmp_state():
         else:
             info = login_state.user_info
             print(
-                f'           Name: {Fore.LIGHTGREEN_EX}{info.firstname or ""} {info.lastname or ""}{Fore.RESET}'
+                f'Name: {Fore.LIGHTGREEN_EX}{info.firstname or ""} {info.lastname or ""}{Fore.RESET}'
             )
-            print(
-                f'          Email: {Fore.LIGHTGREEN_EX}{info.email or ""}{Fore.RESET}'
-            )
+            print(f'Email: {Fore.LIGHTGREEN_EX}{info.email or ""}{Fore.RESET}')
             print(
                 f'Account Created: {Fore.LIGHTGREEN_EX}{info.created or ""}{Fore.RESET}'
             )
@@ -71,7 +67,8 @@ def _run_dmp_state():
                     print(f"You have access to {len(studies)} studies:")
                     for study_id, study_name in studies.items():
                         print(
-                            f'  {Fore.LIGHTCYAN_EX}{study_id}{Fore.RESET} = "{Fore.YELLOW}{study_name}{Fore.RESET}"'
+                            f'{Fore.LIGHTCYAN_EX}{study_id}{Fore.RESET} = "\
+                            {Fore.YELLOW}{study_name}{Fore.RESET}"'
                         )
             pass
     pass
@@ -80,10 +77,8 @@ def _run_dmp_state():
 def _run_dmp_study(study_prefix: str):
     ccy = Fore.LIGHTCYAN_EX
     crd = Fore.LIGHTRED_EX
-    cgn = Fore.LIGHTGREEN_EX
     cor = Fore.YELLOW
     cyw = Fore.LIGHTYELLOW_EX
-    cbl = Fore.LIGHTBLUE_EX
     c0 = Fore.RESET
     ok = False
     with DmpConnection("dmpapp") as dc:
@@ -115,16 +110,13 @@ def _run_dmp_study(study_prefix: str):
 
 
 def _run_dmp_login(username: Optional[str]):
-    ccy = Fore.LIGHTCYAN_EX
     crd = Fore.LIGHTRED_EX
     cgn = Fore.LIGHTGREEN_EX
-    cor = Fore.YELLOW
-    cyw = Fore.LIGHTYELLOW_EX
-    cbl = Fore.LIGHTBLUE_EX
     c0 = Fore.RESET
     with DmpConnection("dmpapp") as dc:
         login_state = dc.login_state
         username = username or login_state.username
+
         if username is None or username == "":
             print(f"{crd}No user name known - please specify{c0}")
             username = input("User Name: ")
@@ -133,27 +125,21 @@ def _run_dmp_login(username: Optional[str]):
         password = getpass(
             f'Password for user "{username}": '
         )  # cannot use color in that string
+
         if password == "":
             print(f"{crd}No password provided - aborting{c0}")
             exit(1)
-        # print(f'***** Password is [{password}]')
+
         code = input("Six-digit authentication code: ")
         if not re.match(r"^\d{6}$", code):
             print(f'{crd}"{code}" is not a six-digit number...{c0}')
             exit(1)
         response = dc.login_request(username, password, code)
 
-        print("DEBUG Response =")
-        info2 = {
-            "user": response.content,
-            "cookies": response.cookies,
-            "status": response.status,
-        }
-        print(json.dumps(info2, indent=2))
-
         info = response.content
         cookie = response.cookies["connect.sid"]
         login_state.change_user(username, cookie, info)
+
         pass
     print(f"{cgn}Login Succesful!{c0}. New login state:")
     _run_dmp_state()
@@ -161,12 +147,8 @@ def _run_dmp_login(username: Optional[str]):
 
 
 def _run_dmp_refresh():
-    ccy = Fore.LIGHTCYAN_EX
     crd = Fore.LIGHTRED_EX
-    cgn = Fore.LIGHTGREEN_EX
     cor = Fore.YELLOW
-    cyw = Fore.LIGHTYELLOW_EX
-    cbl = Fore.LIGHTBLUE_EX
     c0 = Fore.RESET
     with DmpConnection("dmpapp") as dc:
         login_state = dc.login_state
@@ -179,7 +161,7 @@ def _run_dmp_refresh():
             dui = DmpUserInfo(info)
             if dui.username != login_state.username:
                 raise ValueError(
-                    f"User name in response ({dui.username}) does not match state user name ({login_state.username})"
+                    f"User name ({dui.username}) does not match state ({login_state.username})"
                 )
             if dui.studies is None:
                 raise ValueError("No study information present in response - aborting")
@@ -434,14 +416,6 @@ def _run_dmp_list(
     :param fids: The list of file ID prefixes to select, or an empty list
     to select all files, or None to exclude file details (and use file counts instead)
     """
-    ccy = Fore.LIGHTCYAN_EX
-    crd = Fore.LIGHTRED_EX
-    cgn = Fore.LIGHTGREEN_EX
-    cor = Fore.YELLOW
-    cyw = Fore.LIGHTYELLOW_EX
-    cbl = Fore.LIGHTBLUE_EX
-    c0 = Fore.RESET
-
     n_id = _vlen(fids)
     grouped = _get_filtered_list(study, participants, kinds, devices, fids)
     if grouped is None:
@@ -483,7 +457,6 @@ def _run_dmp_sync(
     fids: Optional[List[str]],
     cap: int,
 ):
-    ccy = Fore.LIGHTCYAN_EX
     crd = Fore.LIGHTRED_EX
     cgn = Fore.LIGHTGREEN_EX
     cor = Fore.YELLOW
@@ -502,7 +475,6 @@ def _run_dmp_sync(
         if not dc.is_logged_in:
             print(f"{crd}You are not logged in{c0}")
             return
-        info = login_state.user_info
         if study is None or study == "":
             study = login_state.default_study
             if study is None:
@@ -599,7 +571,7 @@ def _run_dmp_sync(
                 f"{cbl}Some files were skipped because there were more than the download cap{c0}:"
             )
             print(
-                f"  There are {crd}{remaining}{c0} more files to download. Consider using the -cap option"
+                f"There are {crd}{remaining}{c0} more files to download. Consider using the -cap option"
             )
 
     pass
@@ -625,7 +597,7 @@ def _run_dmp_onefile(study: Optional[str], file_id: str, file_name: Optional[str
         if not dc.is_logged_in:
             print(f"{crd}You are not logged in{c0}")
             return
-        info = login_state.user_info
+
         if study is None or study == "":
             study = login_state.default_study
             if study is None:
@@ -645,7 +617,10 @@ def _run_dmp_onefile(study: Optional[str], file_id: str, file_name: Optional[str
             return
         dfi = files[0]
         print(
-            f"Processing file {ccy}{dfi.file_id}{c0} / {cgn}{dfi.file_name}{c0} / {cyw}{dfi.file_size}{c0} bytes"
+            f"Processing file "
+            f"{ccy}{dfi.file_id}{c0} / "
+            f"{cgn}{dfi.file_name}{c0} / "
+            f"{cyw}{dfi.file_size}{c0} bytes"
         )
         if file_name is None or file_name == "":
             file_name = f"{dfi.participant_id}-{dfi.device_id}-{dfi.file_name}"
@@ -736,10 +711,6 @@ def run_dmp_app(*arguments: str):
     subparsers = parser.add_subparsers(dest="command", title="Commands")
     subparsers.required = True
 
-    parser_state = subparsers.add_parser(
-        "state", help="Print your current login state and accessible studies"
-    )
-
     parser_login = subparsers.add_parser(
         "login", help="Log the named user in (and log out the current user, if any)"
     )
@@ -748,10 +719,6 @@ def run_dmp_app(*arguments: str):
         nargs="?",
         type=str,
         help="The user name. If omitted the previously used user name is reused",
-    )
-
-    parser_refresh = subparsers.add_parser(
-        "refresh", help="Refresh your login information from the server"
     )
 
     parser_files = subparsers.add_parser(
@@ -813,7 +780,7 @@ def run_dmp_app(*arguments: str):
         nargs="*",
         type=str,
         dest="list_id",
-        help="Select one or more file id prefixes, or no arguments to list details for all selected files",
+        help="Select >= 1 file id prefixes, or no arguments to list details for all selected files",
     )
 
     parser_sync = subparsers.add_parser("sync", help="Download missing files")

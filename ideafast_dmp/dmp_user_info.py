@@ -1,6 +1,7 @@
-from typing import List, Any, Dict, Optional
-from ideafast_dmp.dmp_utils import safe_dict_get, safe_list_get
-from datetime import datetime, timedelta, timezone, tzinfo
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
+from ideafast_dmp.dmp_utils import safe_dict_get
 
 
 class DmpUserInfo:
@@ -49,7 +50,7 @@ class DmpUserInfo:
         prefix = (prefix or "").lower()
         studies = self.studies
         if studies is not None:
-            for sid, snm in studies.items():
+            for sid, _ in studies.items():
                 if sid.lower().startswith(prefix):
                     lst.append(sid)
         return lst
