@@ -5,12 +5,8 @@ and through a library that exposes a subset of methods for authentication, viewi
 
 ## Using Command Line Interface (CLI)
 
-You can run the CLI programme to login, view, download, and upload data to the DMP 
-all from within your terminal. The expanded documentation is [here](CLI.md) otherwise run:
-
-```sh
-$ poetry run cli
-```
+The CLI programme can be used to login, view, download, and upload data to the DMP. 
+The assocaited CLI documentation such as parameters is documented [here](CLI.md).
 
 ## Local Development
 
@@ -22,7 +18,7 @@ Python 3.8 is used by default and can be installed and set as follows:
 $ pyenv install 3.8.0 && pyenv global 3.8.0
 ```
 
-Then install all dependencies for this project through poetry by running:
+Then install all dependencies for this project through poetry:
 
 ```sh
 $ poetry install
@@ -34,7 +30,9 @@ To use the virtual environment poetry created:
 $ poetry shell
 ```
 
-[Nox](https://nox.thea.codes/) is installed as a development dependency via poetry and is used used to simplfy running tests, code formatting, and linting. To run all nox commands (black, lint, tests):
+### Testing, Linting, & Code Formatting
+
+[Nox](https://nox.thea.codes/) is installed as a development dependency through poetry and is used used to simplfy running tests, code formatting, and linting. To run _all_ nox commands ([black](https://github.com/psf/black), [lint](https://flake8.pycqa.org/en/latest/), [tests](https://docs.pytest.org/en/latest/)):
 
 ```sh
 $ poetry run nox -r

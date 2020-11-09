@@ -117,10 +117,7 @@ class AppState:
         if not (name.isidentifier()):
             raise ValueError(f'"{name}" is not a a valid app state identifier')
         statefile: Union[Path, PathLike] = self.home.joinpath(name + ".json")
-        if not (statefile.exists()):
-            return None
-        else:
-            return os.path.getmtime(statefile) if statefile.exists() else None
+        return os.path.getmtime(statefile) if statefile.exists() else None
 
     def state_datetime(self, name: str) -> Optional[datetime]:
         """
