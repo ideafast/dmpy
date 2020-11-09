@@ -6,27 +6,21 @@ virtual environment poetry creates via `poetry shell`.
 
 ## Running CLI
 
-Note: data that is downloaded via the CLI must be stored in a `data folder`
-
-Run `poetry run cli` to view the help page and associated commands. 
-An overview of each is presented below.
-
-On first, you should log in and set local state:
-
+From the root folder run `poetry run cli` to view the help page and associated commands. An overview of each is presented below. On first use, you should run the `login` and `configure` commands documented below.
 
 ### Login: Logging in
 
-Before logging in, please ensure you have an account on the [Data Management Platform](https://data.ideafast.eu/), then run:
+Before logging in, please ensure you have an account on the [Data Management Platform (DMP)](https://data.ideafast.eu/), then run:
 
 ```sh
 $ poetry run cli login
 ```
 
-You will be prompt for your username, password and authentication code. 
+You will be prompted for your username, password, and authentication code. 
 
 ### State: Overview
 
-Once entered successful, a dotfile is created in your home directory that stores relevant store of the application, such your username and a cookie. You can view this state, including the list of `studies` that you have access to by running:
+Once successfully authenticated, a dotfile folder (i.e. `~/.dmpapp/`) is created in your home directory that stores relevant store of the application, such your username and a cookie. You can view this state, including the list of `studies` that you have access to by running:
 
 ```sh
 $ poetry run cli state
@@ -53,18 +47,16 @@ f4d96235-4c62-4910-a182-73836554036c = Hackathon_test2
 
 To downloaded data you must configure the location where you want to store it by providing a full (_absolute_) path. This folder _must_ exist before running the command:
 
-
 ```sh
 $ poetry run cli configure /Users/jawrainey/data/idea-fast/DMP/
 ```
-
 
 ### Study: Default ID
 
 As the DMP allows multiple studies, you must specify which one to use as a default by either using the few characters of the ID or the complete ID:
 
 ```sh
-$ poetry run cli study f4d
+$ poetry run cli study <ID>
 ```
 
 ### Refresh: Keeping Login Validate
@@ -95,7 +87,7 @@ This has a range of optional paramters: `-p` will print a list of all participan
 device kinds and `-d` a list of all participant-device kind combinations. 
 
 ```sh
-$ poetry run cli list [-p <participant>*] [-k <devicekind>*] [-d <deviceid>*] [-id <fileid>*]
+$ poetry run cli list [-p <participant>] [-k <devicekind>] [-d <deviceid>] [-id <fileid>]
 ```
 
 The `-id` command will group and summarise files as follows:
@@ -164,13 +156,13 @@ limit on the number of downloads per invocation of the script. This should be ov
 files in bulk:
 
 ```sh
-$ poetry run cli sync [-p <participant>*] [-k <devicekind>*] [-d <deviceid>*] [-id <fileid>*] [-cap <n>]
+$ poetry run cli sync [-p <participant>] [-k <devicekind>] [-d <deviceid>] [-id <fileid>] [-cap <n>]
 ```
 
 ### Onefile: Downloading One file
 
-To download a single file for testing:
+To download a single file for testing you must specify the ID of the file to download and the name that you want to use when saving the file:
 
 ```sh
-$ poetry run cli onefile -id 375da3ba-5199-41da-a594-386f5ae71213 -out example.csv
+$ poetry run cli onefile [-id <id>] [-out <filename>]
 ```
