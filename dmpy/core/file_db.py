@@ -5,11 +5,11 @@ from os import PathLike
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
-
 import pandas as pd
-from ideafast_dmp.dmp_connection import DmpConnection
-from ideafast_dmp.dmp_data_cache import DmpDataCache
-from ideafast_dmp.dmp_utils import stamp_to_text
+
+from .connection import DmpConnection
+from .data_cache import DmpDataCache
+from .utils import stamp_to_text
 
 
 class DmpFileInfo:

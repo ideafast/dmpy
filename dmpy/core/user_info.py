@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from ideafast_dmp.dmp_utils import safe_dict_get
+from .utils import safe_dict_get
 
 
 class DmpUserInfo:

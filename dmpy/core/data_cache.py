@@ -6,8 +6,8 @@
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from ideafast_dmp.app_state_persistence.app_state import AppState
-from ideafast_dmp.dmp_utils import safe_dict_get
+from .app_state import AppState
+from .utils import safe_dict_get
 
 
 class DmpDataCache:
@@ -80,5 +80,3 @@ class DmpDataCache:
         path.mkdir(exist_ok=True)
         self._state["data_folder"] = str(path)
         self._settings.save_state(self._state)
-
-    pass

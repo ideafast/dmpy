@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from ideafast_dmp.app_state_persistence.app_state import AppState, NamedAppState
-from ideafast_dmp.dmp_user_info import DmpUserInfo
+from .app_state import AppState, NamedAppState
+from .user_info import DmpUserInfo
 
 
 class DmpLoginState:

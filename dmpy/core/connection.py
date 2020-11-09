@@ -7,10 +7,8 @@ from http.cookies import Morsel, SimpleCookie
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from ideafast_dmp.dmp_login_state import DmpLoginState
-from ideafast_dmp.dmp_utils import safe_dict_get, safe_list_get, stamp_to_text
-from ideafast_dmp.helpers import FileUploadPayload
-from ideafast_dmp import dmp_resources
+from .login_state import DmpLoginState
+from .utils import read_text_resource, safe_dict_get, safe_list_get, stamp_to_text
 
 
 class DmpGqlResponse:
@@ -222,50 +220,6 @@ class DmpConnection:
         tmp.replace(dest)
         return res.status
 
-    def upload(self, payload: FileUploadPayload) -> Dict:
-        """
-        Upload a single file to the DMP.
-        :param payload: The validated FileUploadPayload to send.
-        :return: A dictionary containing
-        """
-        # TODO: should not be imported here of course
-        import requests
-
-        # TODO: verify works for large (5GB) files
-        from requests_toolbelt.multipart.encoder import MultipartEncoder
-
-        # TODO: we could do payload.validate() that raises error if input is invalid?
-
-        multipart_data = MultipartEncoder(
-            fields={
-                "operations": payload.operations(),
-                # TODO: determine if this can be removed/simplified from WP5?
-                # Note: unclear how uploading many files would work,
-                # could 'map' be removed and next para be 'file' instead?
-                "map": json.dumps({"fileName": ["variables.file"]}),
-                "fileName": (
-                    payload.path.name,
-                    open(
-                        payload.path,
-                        "rb",
-                    ),
-                    "application/octet-stream",
-                ),
-            }
-        )
-
-        cookie = "SECRET"
-        headers = {
-            "Content-Type": multipart_data.content_type,
-            "Cookie": f"connect.sid=s%{cookie}",
-        }
-
-        url = "https://data.ideafast.eu/graphql"
-        response = requests.post(url, data=multipart_data, headers=headers)
-
-        # TODO: error handling ...
-        return response.json()
-
     def user_info_request(self) -> DmpResponse:
         """
         Request the information record for the "currently logged in user" from
@@ -274,7 +228,7 @@ class DmpConnection:
         valid by the server.
         :return: A response object. The content is the user info object
         """
-        query = dmp_resources.read_text_resource("dmp_userinfo.graphql")
+        query = read_text_resource("userinfo.graphql")
         info = self._loginstate.info
         if info is None or "id" not in info:
             raise ValueError("You are not logged in")
@@ -283,8 +237,6 @@ class DmpConnection:
         response = self.graphql_request(query, variables)
         if response.status != 200:
             raise ValueError(f"Query was rejected by server (status {response.status})")
-
-        # print(f'DEBUG: response content was: {response.jsontext}')
 
         content: dict = json.loads(response.jsontext)
         data = safe_dict_get(content, "data")
@@ -331,7 +283,7 @@ class DmpConnection:
             }
             return ret
 
-        query = dmp_resources.read_text_resource("dmp_study_files.graphql")
+        query = read_text_resource("study_files.graphql")
         info = self._loginstate.info
         if info is None or "id" not in info:
             raise ValueError("You are not logged in")
@@ -362,25 +314,28 @@ class DmpConnection:
         :param totp: The authentication code
         :return: On success: a DmpResponse with the user info and cookie set
         """
-        query = dmp_resources.read_text_resource("dmp_login.graphql")
+        query = read_text_resource("login.graphql")
+
         variables = {
             "username": username,
             "password": password,
             "totp": totp,
         }
-        # print(f'VARS = "{json.dumps(variables)}"')
         response = self.graphql_request(query, variables, False)
-        # print(f'DEBUG: response content was: {response.jsontext}')
         if response.status != 200:
             raise ValueError(f"Query was rejected by server (status {response.status})")
+
         content: dict = json.loads(response.jsontext)
         data = safe_dict_get(content, "data")
         user = safe_dict_get(data, "login")
+
         if user is None:
             raise ValueError("Login failed")
         cookies = response.cookies_as_dict()
+
         if "connect.sid" not in cookies:
             raise ValueError("Login request did not return a login token / cookie")
+
         retval = DmpResponse(user, response.status, cookies)
         return retval
 

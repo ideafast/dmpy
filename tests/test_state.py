@@ -1,10 +1,10 @@
 import json
 import unittest
 
-from ideafast_dmp import dmp_resources
-from ideafast_dmp.app_state_persistence.app_state import AppState
-from ideafast_dmp.dmp_connection import DmpConnection, DmpResponse
-from ideafast_dmp.dmp_login_state import DmpLoginState
+from dmpy.core.app_state import AppState
+from dmpy.core.connection import DmpConnection, DmpResponse
+from dmpy.core.login_state import DmpLoginState
+from dmpy.core.utils import read_text_resource
 
 
 class StateTestCase(unittest.TestCase):
@@ -109,7 +109,7 @@ class StateTestCase(unittest.TestCase):
         pass
 
     def test_resources(self):
-        gql = dmp_resources.read_text_resource("dmp_login.graphql")
+        gql = read_text_resource("login.graphql")
         self.assertIsNotNone(gql)
         self.assertIsInstance(gql, str)
         print("Read text: ----------------------------------------------")

@@ -2,9 +2,17 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from importlib.resources import read_text
 from os import PathLike
 from pathlib import Path
 from typing import Any, List, Optional, Union
+
+
+def read_text_resource(name) -> str:
+    """
+    Returns the text content of a resource file at: dmpy.core.resources
+    """
+    return read_text("dmpy.core.resources", name)
 
 
 def safe_dict_get(d: dict, k: str) -> Any:

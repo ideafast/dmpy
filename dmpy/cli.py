@@ -1,6 +1,7 @@
 import argparse
 import itertools
 import re
+import sys
 from getpass import getpass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -10,11 +11,11 @@ import pandas as pd
 from colorama import Fore, Style
 from pandas.core.groupby.generic import DataFrameGroupBy
 
-from ideafast_dmp.dmp_connection import DmpConnection
-from ideafast_dmp.dmp_data_cache import DmpDataCache
-from ideafast_dmp.dmp_file_db import DmpFileDb, DmpFileInfo
-from ideafast_dmp.dmp_user_info import DmpUserInfo
-from ideafast_dmp.dmp_utils import FileTransaction, save_json_with_backup
+from .core.connection import DmpConnection
+from .core.data_cache import DmpDataCache
+from .core.file_db import DmpFileDb, DmpFileInfo
+from .core.user_info import DmpUserInfo
+from .core.utils import FileTransaction, save_json_with_backup
 
 
 def _run_dmp_state():
@@ -26,26 +27,26 @@ def _run_dmp_state():
             f'{Fore.LIGHTYELLOW_EX}Please run "dmpapp configure <datafolder>"{Fore.RESET}'
         )
     else:
-        print(f"    Data folder: {Fore.LIGHTGREEN_EX}{cache_folder_name}{Fore.RESET}")
+        print(f"Data folder: {Fore.LIGHTGREEN_EX}{cache_folder_name}{Fore.RESET}")
     with DmpConnection("dmpapp") as dc:
         login_state = dc.login_state
         print(
-            f"     {Fore.LIGHTBLACK_EX}State file: {login_state.appstate.state_file_name}{Fore.RESET}"
+            f"{Fore.LIGHTBLACK_EX}State file: {login_state.appstate.state_file_name}{Fore.RESET}"
         )
         if login_state.username is None:
-            print(f"      User name: {Fore.LIGHTRED_EX}Not Specified{Fore.RESET}")
+            print(f"  User name: {Fore.LIGHTRED_EX}Not Specified{Fore.RESET}")
         else:
             print(
-                f"      User name: {Fore.LIGHTGREEN_EX}{login_state.username}{Fore.RESET}"
+                f"  User name: {Fore.LIGHTGREEN_EX}{login_state.username}{Fore.RESET}"
             )
         if not dc.is_logged_in:
             print(f"{Fore.LIGHTRED_EX}You are not logged in{Fore.RESET}")
         else:
             info = login_state.user_info
             print(
-                f'Name: {Fore.LIGHTGREEN_EX}{info.firstname or ""} {info.lastname or ""}{Fore.RESET}'
+                f'  Name: {Fore.LIGHTGREEN_EX}{info.firstname or ""} {info.lastname or ""}{Fore.RESET}'
             )
-            print(f'Email: {Fore.LIGHTGREEN_EX}{info.email or ""}{Fore.RESET}')
+            print(f'  Email: {Fore.LIGHTGREEN_EX}{info.email or ""}{Fore.RESET}')
             print(
                 f'Account Created: {Fore.LIGHTGREEN_EX}{info.created or ""}{Fore.RESET}'
             )
@@ -67,8 +68,8 @@ def _run_dmp_state():
                     print(f"You have access to {len(studies)} studies:")
                     for study_id, study_name in studies.items():
                         print(
-                            f'{Fore.LIGHTCYAN_EX}{study_id}{Fore.RESET} = "\
-                            {Fore.YELLOW}{study_name}{Fore.RESET}"'
+                            f"{Fore.LIGHTCYAN_EX}{study_id}{Fore.RESET} = "
+                            f"{Fore.YELLOW}{study_name}{Fore.RESET}"
                         )
             pass
     pass
@@ -546,7 +547,9 @@ def _run_dmp_sync(
                 )
 
                 def progress(sz: int) -> None:
-                    percent = int(100 * sz / dfi.file_size)
+                    # TODO: note change
+                    filesize = dfi.file_size if dfi.file_size > 0 else sz
+                    percent = int(100 * sz / (filesize))
                     print(
                         f"\r{cyw}{sz:10}{c0} / {cbl}{dfi.file_size:10}{c0} / {cor}{percent:3}%{c0}  ",
                         end="",
@@ -655,7 +658,7 @@ configure <data_path>
     Configure (or reconfigure) the folder where downloaded data and metadata will be
     stored
 
-login [<username>]
+login <username>
     Log in into the server. If 'username' is given, that user will be logged in,
     otherwise the most recent user will be re-logged. This command will ask
     for your password and authentication code.
@@ -670,7 +673,7 @@ study <study_id>
     study. Valid study IDs that you have access to are listed in the output of
     'dmpapp state' (and, by extension, 'dmpapp refresh' and 'dmpapp login')
 
-files {<study_id>}
+files <study_id>
     Download the current list of available files from the server for the given study
     or studies. If you do not provide any study IDs, the default study ID configured
     with 'dmpapp study' is used.
@@ -711,6 +714,10 @@ def run_dmp_app(*arguments: str):
     subparsers = parser.add_subparsers(dest="command", title="Commands")
     subparsers.required = True
 
+    parser_state = subparsers.add_parser(  # noqa
+        "state", help="Print your current login state and accessible studies"
+    )
+
     parser_login = subparsers.add_parser(
         "login", help="Log the named user in (and log out the current user, if any)"
     )
@@ -719,6 +726,10 @@ def run_dmp_app(*arguments: str):
         nargs="?",
         type=str,
         help="The user name. If omitted the previously used user name is reused",
+    )
+
+    parser_refresh = subparsers.add_parser(  # noqa
+        "refresh", help="Refresh your login information from the server"
     )
 
     parser_files = subparsers.add_parser(
@@ -868,3 +879,9 @@ def run_dmp_app(*arguments: str):
         print(f"{Style.RESET_ALL}", end="")
         colorama.deinit()
     pass
+
+
+def main():
+    args = sys.argv
+    args = args[1:]
+    run_dmp_app(*args)
