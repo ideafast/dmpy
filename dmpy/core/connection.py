@@ -7,6 +7,7 @@ from http.cookies import Morsel, SimpleCookie
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
+from .payloads import FileUploadPayload
 from .login_state import DmpLoginState
 from .utils import read_text_resource, safe_dict_get, safe_list_get, stamp_to_text
 
@@ -219,6 +220,53 @@ class DmpConnection:
                         progress(size_so_far)
         tmp.replace(dest)
         return res.status
+
+    @staticmethod
+    def upload(payload: FileUploadPayload) -> Dict:
+        """
+        Upload a single file to the DMP.
+        :param payload: The validated FileUploadPayload to send.
+        :return: A dictionary containing
+        """
+        import requests  # noqa
+        from requests_toolbelt.multipart.encoder import MultipartEncoder  # noqa
+
+        # TODO: we could do payload.validate() that raises error if input is invalid?
+
+        multipart_data = MultipartEncoder(
+            {
+                "operations": payload.operations(),
+                # TODO: determine if this can be removed/simplified from WP5?
+                # Note: unclear how uploading many files would work,
+                # could 'map' be removed and next para be 'file' instead?
+                "map": json.dumps({"fileName": ["variables.file"]}),
+                "fileName": (
+                    payload.path.name,
+                    open(
+                        payload.path,
+                        "rb",
+                    ),
+                    "application/octet-stream",
+                ),
+            }
+        )
+
+        cookie = "SECRET"
+        headers = {
+            "Content-Type": multipart_data.content_type,
+            "Cookie": f"connect.sid=s%{cookie}",
+        }
+
+        # TODO: below works with the use of http client
+        # self._conn.request("POST", "/graphql", multipart_data, headers)
+        # res: http.client.HTTPResponse = self._conn.getresponse()
+        # data = res.read()
+        # print(data, res.status, data.decode("utf-8"))
+
+        url = "https://data.ideafast.eu/graphql"
+        response = requests.post(url, data=multipart_data, headers=headers)
+        # TODO: error handling ...
+        return response.json()
 
     def user_info_request(self) -> DmpResponse:
         """

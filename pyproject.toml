@@ -8,6 +8,8 @@ authors = ["Jay Rainey <jay.rainey@newcastle.ac.uk>", "Luc Cluitmans <luc.cluitm
 python = "^3.8"
 colorama = "^0.4.4"
 pandas = "^1.1.4"
+requests = "^2.24.0"
+requests_toolbelt = "^0.9.1"
 
 [tool.poetry.dev-dependencies]
 nox = "^2020.8.22"
@@ -21,6 +23,7 @@ pytest = "^6.1.2"
 
 [tool.poetry.scripts]
 cli = "dmpy.cli:main"
+upload = "dmpy.client:main"
 
 [build-system]
 requires = ["poetry>=0.12"]
