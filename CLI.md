@@ -1,10 +1,10 @@
-## Setup: Installing Dependencies
+# Setup: Installing Dependencies
 
 Follow the [local development setup](./README.md) by downloading and using 
 [poetry](https://python-poetry.org/) to install dependencies, then activate the
 virtual environment poetry creates via `poetry shell`.
 
-### Running CLI
+## Running CLI
 
 Note: data that is downloaded via the CLI must be stored in a `data folder`
 
@@ -14,7 +14,7 @@ An overview of each is presented below.
 On first, you should log in and set local state:
 
 
-#### Login: Logging in
+### Login: Logging in
 
 Before logging in, please ensure you have an account on the [Data Management Platform](https://data.ideafast.eu/), then run:
 
@@ -24,7 +24,7 @@ $ poetry run cli login
 
 You will be prompt for your username, password and authentication code. 
 
-#### State: Overview
+### State: Overview
 
 Once entered successful, a dotfile is created in your home directory that stores relevant store of the application, such your username and a cookie. You can view this state, including the list of `studies` that you have access to by running:
 
@@ -49,7 +49,7 @@ You have access to 2 studies:
 f4d96235-4c62-4910-a182-73836554036c = Hackathon_test2
 ```
 
-#### Configure: File Store Location
+### Configure: File Store Location
 
 To downloaded data you must configure the location where you want to store it by providing a full (_absolute_) path. This folder _must_ exist before running the command:
 
@@ -59,7 +59,7 @@ $ poetry run cli configure /Users/jawrainey/data/idea-fast/DMP/
 ```
 
 
-#### Study: Default ID
+### Study: Default ID
 
 As the DMP allows multiple studies, you must specify which one to use as a default by either using the few characters of the ID or the complete ID:
 
@@ -67,7 +67,7 @@ As the DMP allows multiple studies, you must specify which one to use as a defau
 $ poetry run cli study f4d
 ```
 
-#### Refresh: Keeping Login Validate
+### Refresh: Keeping Login Validate
 
 Your login will expire after a set period of time. To keep it updated use the `refresh` parameter:
 
@@ -75,7 +75,7 @@ Your login will expire after a set period of time. To keep it updated use the `r
 $ poetry run cli refresh
 ```
 
-#### Files: Current List for Study
+### Files: Current List for Study
 
 To retrieve the current list of files for your default study type. This will download the list of available files and save it in both CSV and JSON format in your data folder (specified above). The JSON version will be used by the `list`, `sync`, and `onfile` commands described below, so please do not delete or edit it the created CSV/JSON database:
 
@@ -83,7 +83,7 @@ To retrieve the current list of files for your default study type. This will dow
 $ poetry run cli files
 ```
 
-#### List: Summarise File Information
+### List: Summarise File Information
 
 To summarize or list information from the downloaded file list, use the `list` command:
 
@@ -151,7 +151,7 @@ KZH4ZYY  AX6  AX656JZRH  2020-07-17T10:48:43.874+00:00                   6011061
 KZH4ZYY  AX6  AX6VSZYG5  2020-07-09T10:41:29.499+00:00                   6011809_0000000001.cwa  fbdf21ac-4fd6-4db5-bb55-cf14f14f10b6
 ```
 
-#### Sync: Download Files
+### Sync: Download Files
 
 To download files from the server that you haven't downloaded yet:
 
@@ -167,7 +167,7 @@ files in bulk:
 $ poetry run cli sync [-p <participant>*] [-k <devicekind>*] [-d <deviceid>*] [-id <fileid>*] [-cap <n>]
 ```
 
-#### Downloading One file
+### Onefile: Downloading One file
 
 To download a single file for testing:
 
