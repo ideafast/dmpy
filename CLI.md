@@ -20,7 +20,7 @@ You will be prompted for your username, password, and authentication code.
 
 ### State: Overview
 
-Once successfully authenticated, a dotfile folder (i.e. `~/.dmpapp/`) is created in your home directory that stores relevant store of the application, such your username and a cookie. You can view this state, including the list of `studies` that you have access to by running:
+Once successfully authenticated, a dotfile folder is created in your home directory (i.e. `~/.dmpapp/`) that stores `state` of the application, such your username, a cookie, location of file database, etc. You can view this state, including the list of `studies` that you have access to by running:
 
 ```sh
 $ poetry run cli state
