@@ -3,13 +3,12 @@
 import http.client
 import json
 import re
-from typing import Dict, Any, Optional, List, Union, Callable
-from http.cookies import SimpleCookie, Morsel
+from http.cookies import Morsel, SimpleCookie
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Union
 
-from ideafast_platform_access import dmp_resources
-from .dmp_login_state import DmpLoginState
-from .dmp_utils import safe_dict_get, safe_list_get, stamp_to_text
+from .login_state import DmpLoginState
+from .utils import read_text_resource, safe_dict_get, safe_list_get, stamp_to_text
 
 
 class DmpGqlResponse:
@@ -60,7 +59,10 @@ class DmpResponse:
     """
     Captures the response of a DMP GraphQL query after pre-processing
     """
-    def __init__(self, content: Dict[str, Any], status: int, cookies: Optional[Dict[str, str]]):
+
+    def __init__(
+        self, content: Dict[str, Any], status: int, cookies: Optional[Dict[str, str]]
+    ):
         self._status = status
         self._cookies = cookies or dict()
         self._content = content
@@ -78,7 +80,7 @@ class DmpResponse:
         """
         The collection of cookie set requests from the server
         """
-        return  self._cookies
+        return self._cookies
 
     @property
     def content(self) -> Dict[str, Any]:
@@ -101,7 +103,7 @@ class DmpConnection:
         :param server: The server name or None to use the default ('data.ideafast.eu')
         """
         if server is None:
-            server = 'data.ideafast.eu'
+            server = "data.ideafast.eu"
         self._server = server
         self._conn = http.client.HTTPSConnection(self._server)
         self._loginstate = DmpLoginState(appname)
@@ -136,10 +138,8 @@ class DmpConnection:
         return self._loginstate.is_logged_in
 
     def graphql_request(
-            self,
-            query: str,
-            variables: Dict[str, Any],
-            use_cookie: bool = True) -> DmpGqlResponse:
+        self, query: str, variables: Dict[str, Any], use_cookie: bool = True
+    ) -> DmpGqlResponse:
         """
         Initiate a request to the DMP server's GraphQL query endpoint
         :param query: The GraphQL query text
@@ -150,33 +150,33 @@ class DmpConnection:
         :return: The full JSON text from the response
         """
         headers = {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
         }
         if use_cookie:
             if not self.is_logged_in:
-                raise ValueError('You are not logged in')
-            headers['Cookie'] = 'connect.sid=' + self._loginstate.cookie
-        payload = {
-            "query": query
-        }
+                raise ValueError("You are not logged in")
+            headers["Cookie"] = "connect.sid=" + self._loginstate.cookie
+        payload = {"query": query}
         if variables is not None:
-            payload['variables'] = variables
+            payload["variables"] = variables
         payloadtext = json.dumps(payload)
-        self._conn.request('POST', '/graphql', payloadtext, headers)
+        self._conn.request("POST", "/graphql", payloadtext, headers)
         res: http.client.HTTPResponse = self._conn.getresponse()
         data = res.read()
         cookies = SimpleCookie()
-        setcookievalue = res.getheader('Set-Cookie')
+        setcookievalue = res.getheader("Set-Cookie")
         if setcookievalue is not None:
             cookies.load(setcookievalue)
-        return DmpGqlResponse(res.status, data.decode('utf-8'), cookies)
+        return DmpGqlResponse(res.status, data.decode("utf-8"), cookies)
 
-    def download_file(self,
-                      file_id: str,
-                      dest: Union[Path, str],
-                      progress: Optional[Callable[[int], None]] = None) -> int:
+    def download_file(
+        self,
+        file_id: str,
+        dest: Union[Path, str],
+        progress: Optional[Callable[[int], None]] = None,
+    ) -> int:
         """
-        Download a single file from the server to the given local destination file (overwriting it if it exists)
+        Download and overwrite a single file from the server to the given local destination file
         :param file_id: The full file id of the file to download
         :param dest: The destination file name. This must be an absolute path.
         :param progress: An optional progress callback. If not None, this is called repeatedly with the
@@ -185,27 +185,29 @@ class DmpConnection:
         """
         dest = Path(dest)
         if not dest.is_absolute():
-            raise ValueError(f'Expecting an absolute path as destination file')
-        if re.match(
-                r'^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$',
-                file_id) is None:
+            raise ValueError("Expecting an absolute path as destination file")
+        if (
+            re.match(
+                r"^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$",
+                file_id,
+            )
+            is None
+        ):
             raise ValueError(f'Not a valid file ID: "{file_id}"')
         if not self.is_logged_in:
-            raise ValueError('You are not logged in')
+            raise ValueError("You are not logged in")
         directory = dest.parent
         if not directory.is_dir():
             directory.mkdir(parents=True)
-        headers = {
-            'Cookie': 'connect.sid=' + self._loginstate.cookie
-        }
-        self._conn.request('GET', f'/file/{file_id}', None, headers)
+        headers = {"Cookie": "connect.sid=" + self._loginstate.cookie}
+        self._conn.request("GET", f"/file/{file_id}", None, headers)
         res: http.client.HTTPResponse = self._conn.getresponse()
         if res.status != 200:
             res.close()
             return res.status
         size_so_far = 0
-        tmp = dest.parent / f'{dest.name}.tmp'
-        with tmp.open('wb') as f:
+        tmp = dest.parent / f"{dest.name}.tmp"
+        with tmp.open("wb") as f:
             more = True
             while more:
                 chunk = res.read(65536)
@@ -226,23 +228,19 @@ class DmpConnection:
         valid by the server.
         :return: A response object. The content is the user info object
         """
-        query = dmp_resources.read_text_resource('dmp_userinfo.graphql')
+        query = read_text_resource("userinfo.graphql")
         info = self._loginstate.info
-        if info is None or 'id' not in info:
-            raise ValueError('You are not logged in')
-        userid: str = info['id']
-        variables = {
-            'userid': userid
-        }
+        if info is None or "id" not in info:
+            raise ValueError("You are not logged in")
+        userid: str = info["id"]
+        variables = {"userid": userid}
         response = self.graphql_request(query, variables)
         if response.status != 200:
-            raise ValueError(f'Query was rejected by server (status {response.status})')
-
-        # print(f'DEBUG: response content was: {response.jsontext}')
+            raise ValueError(f"Query was rejected by server (status {response.status})")
 
         content: dict = json.loads(response.jsontext)
-        data = safe_dict_get(content, 'data')
-        users = safe_dict_get(data, 'getUsers')
+        data = safe_dict_get(content, "data")
+        users = safe_dict_get(data, "getUsers")
         user: Dict[str, Any] = safe_list_get(users, 0)
         retval = DmpResponse(user, response.status, response.cookies_as_dict())
         return retval
@@ -256,53 +254,55 @@ class DmpConnection:
         """
 
         def reformat_file_entry(fe: Dict[str, Any], studyname: str) -> Dict[str, Any]:
-            dtx: str = fe.get('description')
+            dtx: str = fe.get("description")
             description: Dict[str, Any] = json.loads(dtx)
-            utt = fe.get('uploadTime')
+            utt = fe.get("uploadTime")
             if isinstance(utt, str):
                 utt = int(utt)
-            start_stamp = safe_dict_get(description, 'startDate')
-            end_stamp = safe_dict_get(description, 'endDate')
-            device_id: Optional[str] = safe_dict_get(description, 'deviceId')
+            start_stamp = safe_dict_get(description, "startDate")
+            end_stamp = safe_dict_get(description, "endDate")
+            device_id: Optional[str] = safe_dict_get(description, "deviceId")
             device_kind = device_id[0:3] if device_id is not None else None
             ret = {
-                'fileId': fe['id'],
-                'fileName': fe.get('fileName'),
-                'fileSize': fe['fileSize'],
+                "fileId": fe["id"],
+                "fileName": fe.get("fileName"),
+                "fileSize": fe["fileSize"],
                 # 'description': description,
-                'participantId': safe_dict_get(description, 'participantId'),
-                'deviceKind': device_kind,
-                'deviceId': device_id,
-                'timeStart': stamp_to_text(start_stamp),
-                'timeEnd': stamp_to_text(end_stamp),
-                'timeUpload': stamp_to_text(utt),
-                'stampStart': start_stamp,
-                'stampEnd': end_stamp,
-                'stampUpload': utt,
-                'uploadedBy': fe.get('uploadedBy'),
-                'studyId':   fe.get('studyId'),
-                'studyName': studyname,
+                "participantId": safe_dict_get(description, "participantId"),
+                "deviceKind": device_kind,
+                "deviceId": device_id,
+                "timeStart": stamp_to_text(start_stamp),
+                "timeEnd": stamp_to_text(end_stamp),
+                "timeUpload": stamp_to_text(utt),
+                "stampStart": start_stamp,
+                "stampEnd": end_stamp,
+                "stampUpload": utt,
+                "uploadedBy": fe.get("uploadedBy"),
+                "studyId": fe.get("studyId"),
+                "studyName": studyname,
             }
             return ret
 
-        query = dmp_resources.read_text_resource('dmp_study_files.graphql')
+        query = read_text_resource("study_files.graphql")
         info = self._loginstate.info
-        if info is None or 'id' not in info:
-            raise ValueError('You are not logged in')
+        if info is None or "id" not in info:
+            raise ValueError("You are not logged in")
         variables = {
-            'studyId': study_id,
+            "studyId": study_id,
         }
         response = self.graphql_request(query, variables)
         if response.status != 200:
-            raise ValueError(f'Query was rejected by server (status {response.status})')
+            raise ValueError(f"Query was rejected by server (status {response.status})")
         content: dict = json.loads(response.jsontext)
-        data = safe_dict_get(content, 'data')
-        study = safe_dict_get(data, 'getStudy')
-        study_name: str = safe_dict_get(study, 'name')
-        files: List[Dict[str, Any]] = safe_dict_get(study, 'files')
+        data = safe_dict_get(content, "data")
+        study = safe_dict_get(data, "getStudy")
+        study_name: str = safe_dict_get(study, "name")
+        files: List[Dict[str, Any]] = safe_dict_get(study, "files")
         if files is None:
-            self._loginstate.state_host.save_state('last_error_data', content)
-            raise ValueError('No file information in response (dump saved to state "last_error_data")')
+            self._loginstate.state_host.save_state("last_error_data", content)
+            raise ValueError(
+                'No file information in response (dump saved to state "last_error_data")'
+            )
         files2 = [reformat_file_entry(fe, study_name) for fe in files]
         return files2
 
@@ -314,25 +314,28 @@ class DmpConnection:
         :param totp: The authentication code
         :return: On success: a DmpResponse with the user info and cookie set
         """
-        query = dmp_resources.read_text_resource('dmp_login.graphql')
+        query = read_text_resource("login.graphql")
+
         variables = {
-            'username': username,
-            'password': password,
-            'totp': totp,
+            "username": username,
+            "password": password,
+            "totp": totp,
         }
-        # print(f'VARS = "{json.dumps(variables)}"')
         response = self.graphql_request(query, variables, False)
-        # print(f'DEBUG: response content was: {response.jsontext}')
         if response.status != 200:
-            raise ValueError(f'Query was rejected by server (status {response.status})')
+            raise ValueError(f"Query was rejected by server (status {response.status})")
+
         content: dict = json.loads(response.jsontext)
-        data = safe_dict_get(content, 'data')
-        user = safe_dict_get(data, 'login')
+        data = safe_dict_get(content, "data")
+        user = safe_dict_get(data, "login")
+
         if user is None:
-            raise ValueError(f'Login failed')
+            raise ValueError("Login failed")
         cookies = response.cookies_as_dict()
-        if 'connect.sid' not in cookies:
-            raise ValueError(f'Login request did not return a login token / cookie')
+
+        if "connect.sid" not in cookies:
+            raise ValueError("Login request did not return a login token / cookie")
+
         retval = DmpResponse(user, response.status, cookies)
         return retval
 
@@ -344,5 +347,3 @@ class DmpConnection:
         return self._loginstate
 
     pass
-
-

@@ -1,10 +1,8 @@
-
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, Optional
 
-from .app_state_persistence.app_state import AppState, NamedAppState
-from .dmp_user_info import DmpUserInfo
-from .dmp_utils import safe_dict_get, safe_list_get
+from .app_state import AppState, NamedAppState
+from .user_info import DmpUserInfo
 
 
 class DmpLoginState:
@@ -12,18 +10,19 @@ class DmpLoginState:
     Helper object to represent a persisted login state for the
     IDEA-FAST Data Management Platform
     """
+
     def __init__(self, appname: str):
         """
         Create a new Dmp
         :param appname: The name of the application on behalf of whom
         this object manages the DMP login state. Must be a valid identifier.
         """
-        self._appstate = AppState(appname).wrap_state('login')
+        self._appstate = AppState(appname).wrap_state("login")
         self._state: Dict[str, Any] = {
             "username": None,
-            "cookie":   None,
-            "info":     None,
-            "study":    None,
+            "cookie": None,
+            "info": None,
+            "study": None,
         }
         self._reset(True)
         pass
@@ -34,7 +33,7 @@ class DmpLoginState:
         Return the persisted user name, or None if not set
         :return: The user name
         """
-        return self._state.get('username', None)
+        return self._state.get("username", None)
 
     @property
     def cookie(self) -> Optional[str]:
@@ -42,14 +41,14 @@ class DmpLoginState:
         Return the persisted login cookie, or None if not "logged in"
         :return: The cookie value
         """
-        return self._state.get('cookie', None)
+        return self._state.get("cookie", None)
 
     @property
     def default_study(self) -> Optional[str]:
         """
         Return the default study ID, if any
         """
-        return self._state.get('study', None)
+        return self._state.get("study", None)
 
     @property
     def info(self) -> Optional[Dict[str, Any]]:
@@ -57,7 +56,7 @@ class DmpLoginState:
         Return the raw persisted user info object, or None if not "logged in"
         :return: The info dictionary (extracted from the JSON server response)
         """
-        return self._state.get('info', None)
+        return self._state.get("info", None)
 
     @property
     def user_info(self) -> Optional[DmpUserInfo]:
@@ -98,10 +97,12 @@ class DmpLoginState:
         self._appstate.save_state(None)
         self._reset(True)
 
-    def change_user(self,
-                    username: Optional[str],
-                    cookie: Optional[str],
-                    info: Optional[Dict[str, Any]]):
+    def change_user(
+        self,
+        username: Optional[str],
+        cookie: Optional[str],
+        info: Optional[Dict[str, Any]],
+    ):
         """
         Change the user name and clear or change the login cookie.
         Unless a cookie is provided, calling this implies "logging out"
@@ -112,10 +113,12 @@ class DmpLoginState:
         :param info: The login state information received from the server
         """
         if cookie is None and info is not None:
-            raise ValueError('Cannot set login info if there is no login cookie')
+            raise ValueError("Cannot set login info if there is no login cookie")
         if username is None:
             if cookie is not None:
-                raise ValueError(f'Cannot login without providing a user name at the same time')
+                raise ValueError(
+                    "Cannot login without providing a user name at the same time"
+                )
             self._reset(False)
             self._save()
         else:
@@ -138,19 +141,23 @@ class DmpLoginState:
         Change the default study ID (or clear it)
         :param study_prefix: A prefix of the new default study ID
         """
-        if study_prefix is None or study_prefix == '':
+        if study_prefix is None or study_prefix == "":
             self._state["study"] = None
         else:
             info = self.user_info
             if info is None:
-                raise ValueError('Cannot validate study ID because you are not logged in')
+                raise ValueError(
+                    "Cannot validate study ID because you are not logged in"
+                )
             ids = info.matching_study_ids(study_prefix)
             if len(ids) == 0:
                 raise ValueError(
-                    f'Cannot find an accessible study in your login data for study prefix "{study_prefix}"')
+                    f'Accessible study not found in your login data for study prefix "{study_prefix}"'
+                )
             if len(ids) > 1:
                 raise ValueError(
-                    f'Ambiguous study prefix "{study_prefix}". Matches: {", ".join(ids)}')
+                    f'Ambiguous study prefix "{study_prefix}". Matches: {", ".join(ids)}'
+                )
             study_id = ids[0]
             self._state["study"] = study_id
             self._save()
@@ -168,7 +175,8 @@ class DmpLoginState:
         else:
             if self.username is None:
                 raise ValueError(
-                    'Cannot login without establishing a user name first (hint: use "change_user" instead of "login")')
+                    'Cannot login without a username (hint: use "change_user" instead of "login")'
+                )
             self.change_user(self.username, cookie, info)
 
     def logout(self):
@@ -225,5 +233,3 @@ class DmpLoginState:
         return self._appstate.host
 
     pass
-
-

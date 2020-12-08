@@ -3,10 +3,11 @@
 # This file contains the code related to the folder caching and
 # indexing downloaded data files
 
-from typing import Optional, Dict, List, Union, Any
-from .app_state_persistence.app_state import NamedAppState, AppState
-from .dmp_utils import safe_dict_get
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+from .app_state import AppState
+from .utils import safe_dict_get
 
 
 class DmpDataCache:
@@ -22,13 +23,11 @@ class DmpDataCache:
         that, in turn, stores the location of the data folder. If not None,
         this must be a valid ID. Default: 'dmp_data'
         """
-        appname = appname or 'dmp_data'
-        self._settings = AppState(appname).wrap_state('dmp_cache')
+        appname = appname or "dmp_data"
+        self._settings = AppState(appname).wrap_state("dmp_cache")
         self._state: Dict[str, Any] = self._settings.load_state()
         if self._state is None:
-            self._state: Dict[str, Any] = {
-                "data_folder": None
-            }
+            self._state: Dict[str, Any] = {"data_folder": None}
             self._settings.save_state(self._state)
         pass
 
@@ -38,7 +37,7 @@ class DmpDataCache:
         Get the name of the configured data folder, or None if not
         configured
         """
-        return safe_dict_get(self._state, 'data_folder')
+        return safe_dict_get(self._state, "data_folder")
 
     @property
     def data_folder(self) -> Path:
@@ -48,12 +47,13 @@ class DmpDataCache:
         the data folder exists (creating it if necessary)
         """
         fname = self.data_folder_raw
-        if fname is None or fname == '':
-            raise ValueError('Data folder has not been configured yet')
+        if fname is None or fname == "":
+            raise ValueError("Data folder has not been configured yet")
         folder = Path(fname)
         if not folder.is_absolute():
             raise ValueError(
-                f'Expecting the configured data path to be absolute, but got "{folder}"')
+                f'Expecting the configured data path to be absolute, but got "{folder}"'
+            )
         if not folder.exists():
             folder.mkdir()
         if not folder.is_dir():
@@ -66,7 +66,7 @@ class DmpDataCache:
         Returns True if a data folder has been configured
         """
         fname = self.data_folder_raw
-        return fname is not None and fname != ''
+        return fname is not None and fname != ""
 
     def configure_data_folder(self, new_data_folder: str):
         """
@@ -80,7 +80,3 @@ class DmpDataCache:
         path.mkdir(exist_ok=True)
         self._state["data_folder"] = str(path)
         self._settings.save_state(self._state)
-
-    pass
-
-
