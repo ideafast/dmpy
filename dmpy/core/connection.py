@@ -104,9 +104,9 @@ class DmpConnection:
         :param server: The server name or None to use the default ('data.ideafast.eu')
         """
         if server is None:
-            server = "data.ideafast.eu"
+            server = "localhost:3000"
         self._server = server
-        self._conn = http.client.HTTPSConnection(self._server)
+        self._conn = http.client.HTTPConnection(self._server)
         self._loginstate = DmpLoginState(appname)
         pass
 
@@ -139,7 +139,7 @@ class DmpConnection:
         return self._loginstate.is_logged_in
 
     def graphql_request(
-        self, query: str, variables: Dict[str, Any], use_cookie: bool = True
+        self, query: str, variables: any, use_cookie: bool = True
     ) -> DmpGqlResponse:
         """
         Initiate a request to the DMP server's GraphQL query endpoint
@@ -276,20 +276,14 @@ class DmpConnection:
         valid by the server.
         :return: A response object. The content is the user info object
         """
-        query = read_text_resource("userinfo.graphql")
-        info = self._loginstate.info
-        if info is None or "id" not in info:
-            raise ValueError("You are not logged in")
-        userid: str = info["id"]
-        variables = {"userid": userid}
-        response = self.graphql_request(query, variables)
+        query = read_text_resource("whoami.graphql")
+        response = self.graphql_request(query, None)
         if response.status != 200:
             raise ValueError(f"Query was rejected by server (status {response.status})")
 
         content: dict = json.loads(response.jsontext)
         data = safe_dict_get(content, "data")
-        users = safe_dict_get(data, "getUsers")
-        user: Dict[str, Any] = safe_list_get(users, 0)
+        user = safe_dict_get(data, "whoAmI")
         retval = DmpResponse(user, response.status, response.cookies_as_dict())
         return retval
 
