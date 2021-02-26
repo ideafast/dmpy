@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
+from time import time as now
 
 from .app_state import AppState, NamedAppState
 from .user_info import DmpUserInfo
@@ -36,7 +37,7 @@ class DmpLoginState:
         return self._state.get("username", None)
 
     @property
-    def cookie(self) -> Optional[str]:
+    def cookie(self) -> Optional[Dict[str, Any]]:
         """
         Return the persisted login cookie, or None if not "logged in"
         :return: The cookie value
@@ -100,7 +101,7 @@ class DmpLoginState:
     def change_user(
         self,
         username: Optional[str],
-        cookie: Optional[str],
+        cookie: Optional[Dict[str, Any]],
         info: Optional[Dict[str, Any]],
     ):
         """
@@ -163,7 +164,7 @@ class DmpLoginState:
             self._save()
         pass
 
-    def login(self, cookie: str, info: Dict[str, Any]):
+    def login(self, cookie: Dict[str, Any], info: Dict[str, Any]):
         """
         Record the login cookie for the current user.
         To set the user name and login cookie at the same time, use "change_user()" instead
@@ -192,7 +193,12 @@ class DmpLoginState:
         Returns true if login information is available in this state (whether or not that
         information is valid is up to the server to decide)
         """
-        return self.cookie is not None
+        if self.cookie is None:
+            return False
+        else:
+            if self.cookie["expiration"] < now():
+                return False
+        return True
 
     @property
     def has_username(self):

@@ -5,6 +5,7 @@ import sys
 from getpass import getpass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+from time import time as now
 
 import colorama
 import pandas as pd
@@ -39,8 +40,8 @@ def _run_dmp_state():
             print(
                 f"  User name: {Fore.LIGHTGREEN_EX}{login_state.username}{Fore.RESET}"
             )
-        if not dc.is_logged_in:
-            print(f"{Fore.LIGHTRED_EX}You are not logged in{Fore.RESET}")
+        if float(dc.login_state.cookie['expiration']) < now():
+            print(f"{Fore.LIGHTRED_EX}Your login session expired, please login again {Fore.RESET}")
         else:
             info = login_state.user_info
             print(
@@ -138,8 +139,10 @@ def _run_dmp_login(username: Optional[str]):
         response = dc.login_request(username, password, code)
 
         info = response.content
-        cookie = response.cookies["connect.sid"]
-        login_state.change_user(username, cookie, info)
+        login_state.change_user(
+            username,
+            {"cookie": response.cookies["connect.sid"], "expiration": response.cookies["expiration"]},
+            info)
 
         pass
     print(f"{cgn}Login Succesful!{c0}. New login state:")
@@ -548,7 +551,7 @@ def _run_dmp_sync(
 
                 def progress(sz: int) -> None:
                     # TODO: note change
-                    filesize = dfi.file_size if dfi.file_size > 0 else sz
+                    filesize = int(dfi.file_size) if int(dfi.file_size) > 0 else sz
                     percent = int(100 * sz / (filesize))
                     print(
                         f"\r{cyw}{sz:10}{c0} / {cbl}{dfi.file_size:10}{c0} / {cor}{percent:3}%{c0}  ",

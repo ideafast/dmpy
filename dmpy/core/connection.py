@@ -1,11 +1,13 @@
 # interaction with the DMP server
-
+from __future__ import annotations
+import functools
 import http.client
 import json
 import re
 from http.cookies import Morsel, SimpleCookie
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
+from time import time as now
 
 from .payloads import FileUploadPayload
 from .login_state import DmpLoginState
@@ -138,6 +140,16 @@ class DmpConnection:
         """
         return self._loginstate.is_logged_in
 
+    def _check_expiration(func):
+        @functools.wraps(func)
+        def wrap(self, *args, **kwargs):
+            expiration = self._loginstate.cookie["expiration"]
+            if float(expiration) < now():
+                raise ValueError("Login session expired, please login again")
+            return func(self, *args, **kwargs)
+
+        return wrap
+
     def graphql_request(
         self, query: str, variables: any, use_cookie: bool = True
     ) -> DmpGqlResponse:
@@ -156,7 +168,7 @@ class DmpConnection:
         if use_cookie:
             if not self.is_logged_in:
                 raise ValueError("You are not logged in")
-            headers["Cookie"] = "connect.sid=" + self._loginstate.cookie
+            headers["Cookie"] = "connect.sid=" + self._loginstate.cookie["cookie"]
         payload = {"query": query}
         if variables is not None:
             payload["variables"] = variables
@@ -170,6 +182,7 @@ class DmpConnection:
             cookies.load(setcookievalue)
         return DmpGqlResponse(res.status, data.decode("utf-8"), cookies)
 
+    @_check_expiration
     def download_file(
         self,
         file_id: str,
@@ -200,7 +213,7 @@ class DmpConnection:
         directory = dest.parent
         if not directory.is_dir():
             directory.mkdir(parents=True)
-        headers = {"Cookie": "connect.sid=" + self._loginstate.cookie}
+        headers = {"Cookie": "connect.sid=" + self._loginstate.cookie["cookie"]}
         self._conn.request("GET", f"/file/{file_id}", None, headers)
         res: http.client.HTTPResponse = self._conn.getresponse()
         if res.status != 200:
@@ -263,11 +276,12 @@ class DmpConnection:
         # data = res.read()
         # print(data, res.status, data.decode("utf-8"))
 
-        url = "https://data.ideafast.eu/graphql"
+        url = "http://localhost:3000/graphql"
         response = requests.post(url, data=multipart_data, headers=headers)
         # TODO: error handling ...
         return response.json()
 
+    @_check_expiration
     def user_info_request(self) -> DmpResponse:
         """
         Request the information record for the "currently logged in user" from
@@ -287,6 +301,7 @@ class DmpConnection:
         retval = DmpResponse(user, response.status, response.cookies_as_dict())
         return retval
 
+    @_check_expiration
     def study_files_request(self, study_id: str) -> List[Dict[str, Any]]:
         """
         Request information on the content of a study (including detailed information
@@ -366,7 +381,7 @@ class DmpConnection:
         response = self.graphql_request(query, variables, False)
         if response.status != 200:
             raise ValueError(f"Query was rejected by server (status {response.status})")
-
+        expiration = now() + 3600 * 2
         content: dict = json.loads(response.jsontext)
         data = safe_dict_get(content, "data")
         user = safe_dict_get(data, "login")
@@ -376,7 +391,9 @@ class DmpConnection:
         cookies = response.cookies_as_dict()
 
         if "connect.sid" not in cookies:
-            raise ValueError("Login request did not return a login token / cookie")
+            raise ValueError("Login request did not return a login cookie")
+
+        cookies["expiration"] = str(expiration)
 
         retval = DmpResponse(user, response.status, cookies)
         return retval
