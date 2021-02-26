@@ -234,8 +234,8 @@ class DmpConnection:
         tmp.replace(dest)
         return res.status
 
-    @staticmethod
-    def upload(payload: FileUploadPayload) -> Dict:
+    @_check_expiration
+    def upload(self, payload: FileUploadPayload) -> Dict:
         """
         Upload a single file to the DMP.
         :param payload: The validated FileUploadPayload to send.
@@ -264,7 +264,7 @@ class DmpConnection:
             }
         )
 
-        cookie = "SECRET"
+        cookie = self._loginstate.cookie["cookie"]
         headers = {
             "Content-Type": multipart_data.content_type,
             "Cookie": f"connect.sid=s%{cookie}",

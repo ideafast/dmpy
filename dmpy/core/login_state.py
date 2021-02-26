@@ -196,7 +196,7 @@ class DmpLoginState:
         if self.cookie is None:
             return False
         else:
-            if self.cookie["expiration"] < now():
+            if float(self.cookie["expiration"]) < now():
                 return False
         return True
 

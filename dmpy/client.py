@@ -22,8 +22,11 @@ class Dmpy:
         with DmpConnection("dmpapp") as dc:
             response = dc.login_request(USERNAME, PASSWORD, CODE)
             info = response.content
-            cookie = response.cookies["connect.sid"]
-            dc.login_state.change_user(USERNAME, cookie, info)
+            dc.login_state.change_user(
+                USERNAME,
+                {"cookie": response.cookies["connect.sid"], "expiration": response.cookies["expiration"]},
+                info
+            )
 
     def file_list(self, study_id: str) -> List[Dict[str, Any]]:
         """Get list of current files for study on DMP."""
@@ -39,18 +42,20 @@ class Dmpy:
     def upload(self, payload: FileUploadPayload) -> str:
         """Upload a single file to the DMP."""
         # Note: as requests is used upload is static at the moment
-        response = DmpConnection.upload(payload)
+        with DmpConnection("dmpapp") as dc:
+            response = dc.upload(payload)
         return response
 
 
 def main():
     idf_dmpy = Dmpy()
-    studyID = "f4d96235-4c62-4910-a182-73836554036c"
-    path = Path("/Users/jawrainey/code/datum/example.png")
-    partientID = "KTEST"
-    deviceID = "MMM9J9J9J"
+    studyID = "a4080599-f721-47dc-8642-091297d6531b"
+    path = Path("/Users/guanyu/Downloads/I7N3G6G-MMM7N3G6G-20200704-20200741.png")
+    partientID = "I7N3G6G"
+    deviceID = "MMM7N3G6G"
     startWear = 1593817200000
     endWear = 1595286000000
     payload = FileUploadPayload(studyID, path, partientID, deviceID, startWear, endWear)
+    idf_dmpy.auth()
     response = idf_dmpy.upload(payload)
     print(response)
