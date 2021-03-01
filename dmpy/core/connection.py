@@ -143,32 +143,73 @@ class DmpConnection:
     def _check_expiration(func):
         @functools.wraps(func)
         def wrap(self, *args, **kwargs):
-            expiration = self._loginstate.cookie["expiration"]
-            if float(expiration) < now():
-                raise ValueError("Login session expired, please login again")
+            auth_method = self._loginstate.auth_method
+            if auth_method == 1:
+                if self._loginstate.cookie is None:
+                    raise Exception("no cookie info found")
+                else:
+                    expiration = self._loginstate.cookie["expiration"]
+                    if float(expiration) < now():
+                        raise Exception("Login session expired")
+            elif auth_method == 2:
+                if self._loginstate.access_token is None:
+                    raise Exception("no access token info setup")
+                else:
+                    expiration = self._loginstate.access_token["expiration"]
+                    if expiration < now():
+                        self._refresh_token()
             return func(self, *args, **kwargs)
-
         return wrap
 
+    def _refresh_token(self):
+        """
+        Request a new access token using the public key and signature if previous one is expired.
+        Once got the new access token, update it into login state and set the expiration time.
+        """
+        if self._loginstate.access_token is None:
+            raise Exception("public key and signature required")
+        query = read_text_resource("issue_token.graphql")
+        public_key_path = self._loginstate.access_token["public_key_path"]
+        with open(public_key_path, 'r') as public_key:
+            signature = self._loginstate.access_token["signature"]
+            variables = {"pubkey": public_key.read().replace("\n", "\\n"), "signature": signature}
+            self._loginstate.set_auth_method(0)
+            response = self.graphql_request(query, variables)
+            if response.status != 200:
+                raise ValueError(f"Query was rejected by server (status {response.status})")
+
+            content: dict = json.loads(response.jsontext)
+            data = safe_dict_get(content, "data")
+            issued_token = safe_dict_get(data, "issueAccessToken")
+            token = safe_dict_get(issued_token, "accessToken")
+            if token is not None:
+                self._loginstate.access_token["token"] = token
+                self._loginstate.access_token["expiration"] = now() + 200 * 60
+                self._loginstate.set_auth_method(2)
+
     def graphql_request(
-        self, query: str, variables: any, use_cookie: bool = True
+        self, query: str, variables: any
     ) -> DmpGqlResponse:
         """
         Initiate a request to the DMP server's GraphQL query endpoint
         :param query: The GraphQL query text
         :param variables: The query parameters
-        :param use_cookie: (default true) If true, include the login cookie in the query
-        and fail if there was no login yet. If false, do not set that cookie (that is:
-        send an anonymous query). This should only be false for login requests
+        :param auth_method: (default 1) Can only be 0, 1 or 2.
+        If 0, this should be for login or token refresh request
+        if 1, use cookie as authentication. If 2,use access token.
         :return: The full JSON text from the response
         """
         headers = {
             "Content-Type": "application/json",
         }
-        if use_cookie:
-            if not self.is_logged_in:
-                raise ValueError("You are not logged in")
+        if self._loginstate.auth_method == 1:
+            if self._loginstate.cookie is None:
+                raise Exception("You are not logged in")
             headers["Cookie"] = "connect.sid=" + self._loginstate.cookie["cookie"]
+        elif self._loginstate.auth_method == 2:
+            if self._loginstate.access_token is None:
+                raise Exception("no access token info setup")
+            headers["Authorization"] = self._loginstate.access_token["token"]
         payload = {"query": query}
         if variables is not None:
             payload["variables"] = variables
@@ -378,7 +419,7 @@ class DmpConnection:
             "password": password,
             "totp": totp,
         }
-        response = self.graphql_request(query, variables, False)
+        response = self.graphql_request(query, variables)
         if response.status != 200:
             raise ValueError(f"Query was rejected by server (status {response.status})")
         expiration = now() + 3600 * 2

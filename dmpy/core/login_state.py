@@ -24,6 +24,8 @@ class DmpLoginState:
             "cookie": None,
             "info": None,
             "study": None,
+            "access_token": None,
+            "auth_method": 0
         }
         self._reset(True)
         pass
@@ -71,6 +73,21 @@ class DmpLoginState:
         else:
             return DmpUserInfo(info)
 
+    @property
+    def access_token(self) -> Optional[Dict[str, Any]]:
+        """
+        Return the access token information, or None if not set
+        :return: The cookie value
+        """
+        return self._state.get("access_token", None)
+
+    @property
+    def auth_method(self) -> Optional[int]:
+        return self._state.get("auth_method", None)
+
+    def set_auth_method(self, auth_method):
+        self._state["auth_method"] = auth_method
+
     def _save(self):
         self._appstate.save_state(self._state)
 
@@ -88,6 +105,8 @@ class DmpLoginState:
             state["info"] = None
         if "study" not in state:
             state["study"] = None
+        if "access_token" not in state:
+            state["access_token"] = None
         self._state = state
         pass
 
@@ -103,6 +122,7 @@ class DmpLoginState:
         username: Optional[str],
         cookie: Optional[Dict[str, Any]],
         info: Optional[Dict[str, Any]],
+        access_token: Optional[Dict[str, Any]]
     ):
         """
         Change the user name and clear or change the login cookie.
@@ -112,30 +132,54 @@ class DmpLoginState:
         :param cookie: The login cookie, or None to log out. Must be None if
         username is None. Default None
         :param info: The login state information received from the server
+        :param access_token: the access token information
         """
-        if cookie is None and info is not None:
+        if cookie is None and access_token is None and info is not None:
             raise ValueError("Cannot set login info if there is no login cookie")
-        if username is None:
-            if cookie is not None:
-                raise ValueError(
-                    "Cannot login without providing a user name at the same time"
-                )
-            self._reset(False)
-            self._save()
-        else:
-            old_study = self.default_study  # try to preserve it if possible
-            self._reset(False)
-            self._state["username"] = username
-            self._state["cookie"] = cookie
-            self._state["info"] = info
-            self._state["study"] = None
-            if old_study is not None:
-                inf2 = self.user_info
-                if inf2 is not None:
+
+        if access_token is not None:
+            if username is not None:
+                if self._state["username"] != username:
+                    self._state["cookie"] = None
+                self._state["username"] = username
+
+            if info is not None:
+                self._state["info"] = info
+                old_study = self.default_study
+                if old_study is not None:
+                    inf2 = self.user_info
                     ids = inf2.matching_study_ids(old_study)
                     if len(ids) == 1:
                         self._state["study"] = ids[0]
+            self._state["access_token"] = access_token
+            self._state["auth_method"] = 2
+
             self._save()
+        else:
+            if username is None:
+                if cookie is not None:
+                    raise ValueError(
+                        "Cannot login without providing a user name at the same time"
+                    )
+                self._reset(False)
+                self._save()
+            else:
+                old_study = self.default_study  # try to preserve it if possible
+                self._reset(False)
+                self._state["username"] = username
+                self._state["cookie"] = cookie
+                self._state["info"] = info
+                self._state["study"] = None
+                self._state["access_token"] = None
+
+                if old_study is not None:
+                    inf2 = self.user_info
+                    if inf2 is not None:
+                        ids = inf2.matching_study_ids(old_study)
+                        if len(ids) == 1:
+                            self._state["study"] = ids[0]
+                self._state["auth_method"] = 1
+                self._save()
 
     def change_study(self, study_prefix: Optional[str]):
         """
@@ -193,10 +237,16 @@ class DmpLoginState:
         Returns true if login information is available in this state (whether or not that
         information is valid is up to the server to decide)
         """
-        if self.cookie is None:
+        if self.auth_method == 0:
             return False
-        else:
-            if float(self.cookie["expiration"]) < now():
+        elif self.auth_method == 1:
+            if self.cookie is None:
+                return False
+            else:
+                if float(self.cookie["expiration"]) < now():
+                    return False
+        elif self.auth_method == 2:
+            if self.access_token is None:
                 return False
         return True
 

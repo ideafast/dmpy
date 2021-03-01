@@ -136,16 +136,59 @@ def _run_dmp_login(username: Optional[str]):
         if not re.match(r"^\d{6}$", code):
             print(f'{crd}"{code}" is not a six-digit number...{c0}')
             exit(1)
+        dc.login_state.set_auth_method(0)
         response = dc.login_request(username, password, code)
 
         info = response.content
         login_state.change_user(
             username,
             {"cookie": response.cookies["connect.sid"], "expiration": response.cookies["expiration"]},
-            info)
+            info,
+            None
+        )
 
         pass
     print(f"{cgn}Login Succesful!{c0}. New login state:")
+    _run_dmp_state()
+    pass
+
+
+def _run_dmp_token():
+    crd = Fore.LIGHTRED_EX
+    cgn = Fore.LIGHTGREEN_EX
+    c0 = Fore.RESET
+    with DmpConnection("dmpapp") as dc:
+        login_state = dc.login_state
+
+        public_key_path = input("public key path: ")
+        if public_key_path is None or public_key_path == "":
+            raise ValueError("No public key path specified nor archived")
+        signature = input(
+            f'signature: '
+        )
+
+        if signature == "":
+            print(f"{crd}No signature provided - aborting{c0}")
+            exit(1)
+
+        access_token = {"public_key_path": public_key_path, "signature": signature, "token": None, "expiration": now() - 100}
+        login_state.change_user(
+            None,
+            None,
+            None,
+            access_token
+        )
+        user_info_response = dc.user_info_request()
+        info = user_info_response.content
+        username = info["username"]
+        login_state.change_user(
+            username,
+            None,
+            info,
+            access_token
+        )
+        pass
+    print(f"{cgn}Set up successfully!{c0}. New login state:")
     _run_dmp_state()
     pass
 
@@ -731,6 +774,10 @@ def run_dmp_app(*arguments: str):
         help="The user name. If omitted the previously used user name is reused",
     )
 
+    parser_token = subparsers.add_parser(  # noqa
+        "token", help="set public key and signature to get your access token"
+    )
+
     parser_refresh = subparsers.add_parser(  # noqa
         "refresh", help="Refresh your login information from the server"
     )
@@ -856,6 +903,8 @@ def run_dmp_app(*arguments: str):
             _run_dmp_state()
         elif cmd == "login":
             _run_dmp_login(args.username)
+        elif cmd == "token":
+            _run_dmp_token()
         elif cmd == "refresh":
             _run_dmp_refresh()
         elif cmd == "files":
