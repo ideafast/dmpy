@@ -1,56 +1,95 @@
-import os
+import hashlib
+import json
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Dict
 
-from .core.connection import DmpConnection
+import requests
+from dotenv import get_key, load_dotenv, set_key
+from requests_toolbelt.multipart.encoder import (
+    MultipartEncoder,
+    MultipartEncoderMonitor,
+)
+from tqdm import tqdm
+
 from .core.payloads import FileUploadPayload
-
-USERNAME = os.environ.get("USERNAME", None)
-PASSWORD = os.environ.get("PASSWORD", None)
-CODE = os.environ.get("CODE", None)
-# TODO: for future
-API_TOKEN = os.environ.get("API_TOKEN", None)
+from .core.utils import read_text_resource
 
 
 class Dmpy:
-    @staticmethod
-    def auth() -> None:
-        """??"""
-        if None in [USERNAME, PASSWORD, CODE]:
-            raise Exception("SECRETS")
+    def __init__(self):
+        self.env = ".dmpy.env"
+        self.url = get_key(self.env, "DMP_URL")
+        load_dotenv(self.env)
 
-        with DmpConnection("dmpapp") as dc:
-            response = dc.login_request(USERNAME, PASSWORD, CODE)
-            info = response.content
-            cookie = response.cookies["connect.sid"]
-            dc.login_state.change_user(USERNAME, cookie, info)
+    def access_token(self) -> str:
+        """Obtain (or refresh) an access token."""
+        now = int(datetime.utcnow().timestamp())
+        last_created = int(get_key(self.env, "DMP_ACCESS_TOKEN_GEN_TIME"))
+        # Refresh the token every 2 hours, i.e., below 200 minute limit.
+        token_expired = (last_created + 60 * (60 * 2)) <= (now)
 
-    def file_list(self, study_id: str) -> List[Dict[str, Any]]:
-        """Get list of current files for study on DMP."""
-        with DmpConnection("dmpapp") as dc:
-            # NOTE: checks if log in is present and does NOT check if valid...
-            if not dc.is_logged_in:
-                raise Exception("Please log in.")
-            # TODO: validation here?
-            return dc.study_files_request(study_id)
+        if token_expired:
+            request = {
+                "query": read_text_resource("token.graphql"),
+                "variables": {
+                    "pubkey": get_key(self.env, "DMP_PUBLIC_KEY"),
+                    "signature": get_key(self.env, "DMP_SIGNATURE"),
+                },
+            }
 
-    # TODO: we should have helper methods to validate DeviceID/PatientID, etc
+            response = requests.post(self.url, json=request)
+            access_token = response.json()["data"]["issueAccessToken"]["accessToken"]
 
-    def upload(self, payload: FileUploadPayload) -> str:
-        """Upload a single file to the DMP."""
-        # Note: as requests is used upload is static at the moment
-        response = DmpConnection.upload(payload)
-        return response
+            set_key(self.env, "DMP_ACCESS_TOKEN", access_token)
+            # once refreshed use the latest
+            set_key(self.env, "DMP_ACCESS_TOKEN_GEN_TIME", str(now))
+        return get_key(self.env, "DMP_ACCESS_TOKEN")
 
+    def upload(self, payload: FileUploadPayload) -> Dict:
+        """
+        Upload a single file to the DMP.
+        :param payload: The validated FileUploadPayload to send.
+        :return: A dictionary containing a DMP response.
+        """
+        encoder = MultipartEncoder(
+            {
+                "operations": payload.operations(),
+                "map": json.dumps({"fileName": ["variables.file"]}),
+                "fileName": (
+                    payload.path.name,
+                    open(
+                        payload.path,
+                        "rb",
+                    ),
+                    "application/octet-stream",
+                ),
+            }
+        )
+        print(f"Payload: {encoder}")
+        with tqdm(total=encoder.len, unit="B", unit_scale=1, unit_divisor=1024) as bar:
+            monitor = MultipartEncoderMonitor(
+                encoder, lambda _monitor: bar.update(_monitor.bytes_read - bar.n)
+            )
 
-def main():
-    idf_dmpy = Dmpy()
-    studyID = "f4d96235-4c62-4910-a182-73836554036c"
-    path = Path("/Users/jawrainey/code/datum/example.png")
-    partientID = "KTEST"
-    deviceID = "MMM9J9J9J"
-    startWear = 1593817200000
-    endWear = 1595286000000
-    payload = FileUploadPayload(studyID, path, partientID, deviceID, startWear, endWear)
-    response = idf_dmpy.upload(payload)
-    print(response)
+            headers = {
+                "Content-Type": monitor.content_type,
+                "Authorization": self.access_token(),
+            }
+
+            response = requests.post(self.url, data=monitor, headers=headers)
+        print(f"Response: {response.json()}")
+        return response.json()
+
+    def checksum(self, path: Path, hash_factory=hashlib.sha256) -> str:
+        """
+        Create a hash from a file's contents at a given path.
+        :param path: location
+        :param hash_factory: allows overriding hash used (e.g., SHA256, blake, etc)
+        :return a hex checksum of the file's contents
+        """
+        with open(path, "rb") as f:
+            file_hash = hash_factory()
+            while chunk := f.read(128 * file_hash.block_size):
+                file_hash.update(chunk)
+        return file_hash.hexdigest()

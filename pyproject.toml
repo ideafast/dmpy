@@ -10,6 +10,8 @@ colorama = "^0.4.4"
 pandas = "^1.1.4"
 requests = "^2.24.0"
 requests_toolbelt = "^0.9.1"
+python-dotenv = "^0.15.0"
+tqdm = "^4.58.0"
 
 [tool.poetry.dev-dependencies]
 nox = "^2020.8.22"
