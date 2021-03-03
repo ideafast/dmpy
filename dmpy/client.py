@@ -42,15 +42,14 @@ class Dmpy:
             access_token = response.json()["data"]["issueAccessToken"]["accessToken"]
 
             set_key(self.env, "DMP_ACCESS_TOKEN", access_token)
-            # once refreshed use the latest
             set_key(self.env, "DMP_ACCESS_TOKEN_GEN_TIME", str(now))
         return get_key(self.env, "DMP_ACCESS_TOKEN")
 
-    def upload(self, payload: FileUploadPayload) -> Dict:
+    def upload(self, payload: FileUploadPayload) -> bool:
         """
         Upload a single file to the DMP.
         :param payload: The validated FileUploadPayload to send.
-        :return: A dictionary containing a DMP response.
+        :return: True/False depending on upload success
         """
         encoder = MultipartEncoder(
             {
@@ -66,7 +65,9 @@ class Dmpy:
                 ),
             }
         )
-        print(f"Payload: {encoder}")
+
+        print(f"Payload: {encoder}\n")
+
         with tqdm(total=encoder.len, unit="B", unit_scale=1, unit_divisor=1024) as bar:
             monitor = MultipartEncoderMonitor(
                 encoder, lambda _monitor: bar.update(_monitor.bytes_read - bar.n)
@@ -78,10 +79,12 @@ class Dmpy:
             }
 
             response = requests.post(self.url, data=monitor, headers=headers)
-        print(f"Response: {response.json()}")
-        return response.json()
 
-    def checksum(self, path: Path, hash_factory=hashlib.sha256) -> str:
+        print(f"\nResponse: {response.json()}\n")
+        return response.status_code
+
+    @staticmethod
+    def checksum(path: Path, hash_factory=hashlib.sha256) -> str:
         """
         Create a hash from a file's contents at a given path.
         :param path: location
