@@ -78,18 +78,17 @@ class Dmpy:
             }
 
             try:
-                requests.post(self.url, data=monitor, headers=headers, timeout=10)
+                response = requests.post(
+                    self.url, data=monitor, headers=headers, timeout=10
+                )
+                print(f"\nResponse: {response.json()}\n")
+                return True
             except requests.exceptions.Timeout as err:
                 print(f"Timeout occurred: {err}")
                 return False
             except Exception as err:
                 print(f"Unknown error: {err}")
                 return False
-
-            response = requests.post(self.url, data=monitor, headers=headers)
-
-        print(f"\nResponse: {response.json()}\n")
-        return response.ok
 
     @staticmethod
     def checksum(path: Path, hash_factory=hashlib.sha256) -> str:
