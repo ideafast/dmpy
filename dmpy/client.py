@@ -2,7 +2,6 @@ import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
 
 import requests
 from dotenv import get_key, load_dotenv, set_key
@@ -77,6 +76,15 @@ class Dmpy:
                 "Content-Type": monitor.content_type,
                 "Authorization": self.access_token(),
             }
+
+            try:
+                requests.post(self.url, data=monitor, headers=headers, timeout=10)
+            except requests.exceptions.Timeout as err:
+                print(f"Timeout occurred: {err}")
+                return False
+            except Exception as err:
+                print(f"Unknown error: {err}")
+                return False
 
             response = requests.post(self.url, data=monitor, headers=headers)
 
