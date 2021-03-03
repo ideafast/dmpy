@@ -81,7 +81,7 @@ class Dmpy:
             response = requests.post(self.url, data=monitor, headers=headers)
 
         print(f"\nResponse: {response.json()}\n")
-        return response.status_code
+        return response.ok
 
     @staticmethod
     def checksum(path: Path, hash_factory=hashlib.sha256) -> str:
