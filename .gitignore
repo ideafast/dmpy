@@ -145,3 +145,7 @@ dmypy.json
 # PyCharm settings
 .idea/
 .vscode/launch.json
+
+# R history and R Data
+.RData
+.Rhistory

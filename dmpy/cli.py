@@ -724,6 +724,9 @@ login <username>
     otherwise the most recent user will be re-logged. This command will ask
     for your password and authentication code.
 
+token
+    set up access token. This command will ask for your public key path and signature
+
 refresh
     Refresh your cached login information and access rights. This can also be useful
     to test if your login information is still valid
@@ -761,7 +764,7 @@ sync [-p <participant>*] [-k <devicekind>*] [-d <deviceid>*] [-id <fileid>*] [-c
 onefile -id <fileid> -out <filename>
     Download one file. This command is intended for testing only
     
-upload [-s <studyID>*] [-f <filePath>*] [-p <participantID>*] [-d <deviceID>*] [-sd <startDate>*] [-ed <endDate>*] 
+upload -s <studyID> -f <filePath> -p <participantID> -d <deviceID> -sd <startDate> -ed <endDate>
 """
     )
     pass
