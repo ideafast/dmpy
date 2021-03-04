@@ -12,14 +12,15 @@ import pandas as pd
 from colorama import Fore, Style
 from pandas.core.groupby.generic import DataFrameGroupBy
 
-from .core.connection import DmpConnection
-from .core.data_cache import DmpDataCache
-from .core.file_db import DmpFileDb, DmpFileInfo
-from .core.user_info import DmpUserInfo
-from .core.utils import FileTransaction, save_json_with_backup
+from dmpy.core.connection import DmpConnection
+from dmpy.core.data_cache import DmpDataCache
+from dmpy.core.file_db import DmpFileDb, DmpFileInfo
+from dmpy.core.payloads import FileUploadPayload
+from dmpy.core.user_info import DmpUserInfo
+from dmpy.core.utils import FileTransaction, save_json_with_backup
 
 
-def _run_dmp_state():
+def state():
     cache = DmpDataCache(None)
     cache_folder_name = cache.data_folder_raw
     if cache_folder_name is None or cache_folder_name == "":
@@ -40,43 +41,48 @@ def _run_dmp_state():
             print(
                 f"  User name: {Fore.LIGHTGREEN_EX}{login_state.username}{Fore.RESET}"
             )
-        if float(dc.login_state.cookie['expiration']) < now():
-            print(f"{Fore.LIGHTRED_EX}Your login session expired, please login again {Fore.RESET}")
+        if dc.login_state.auth_method == 0:
+            print(f"{Fore.LIGHTRED_EX}You are not logged in. Please login or set access token{Fore.RESET}")
+            exit(1)
+        elif dc.login_state.auth_method == 1:
+            if float(dc.login_state.cookie['expiration']) < now():
+                print(f"{Fore.LIGHTRED_EX}Your login session expired, please login again {Fore.RESET}")
+                exit(1)
+
+        info = login_state.user_info
+        print(
+            f'  Name: {Fore.LIGHTGREEN_EX}{info.firstname or ""} {info.lastname or ""}{Fore.RESET}'
+        )
+        print(f'  Email: {Fore.LIGHTGREEN_EX}{info.email or ""}{Fore.RESET}')
+        print(
+            f'Account Created: {Fore.LIGHTGREEN_EX}{info.created or ""}{Fore.RESET}'
+        )
+        print(
+            f'Account Expires: {Fore.LIGHTGREEN_EX}{info.expires or ""}{Fore.RESET}'
+        )
+        dstd = login_state.default_study
+        if dstd is None:
+            print(f"  Default Study: {Fore.LIGHTRED_EX}Not selected!{Fore.RESET}")
         else:
-            info = login_state.user_info
-            print(
-                f'  Name: {Fore.LIGHTGREEN_EX}{info.firstname or ""} {info.lastname or ""}{Fore.RESET}'
-            )
-            print(f'  Email: {Fore.LIGHTGREEN_EX}{info.email or ""}{Fore.RESET}')
-            print(
-                f'Account Created: {Fore.LIGHTGREEN_EX}{info.created or ""}{Fore.RESET}'
-            )
-            print(
-                f'Account Expires: {Fore.LIGHTGREEN_EX}{info.expires or ""}{Fore.RESET}'
-            )
-            dstd = login_state.default_study
-            if dstd is None:
-                print(f"  Default Study: {Fore.LIGHTRED_EX}Not selected!{Fore.RESET}")
+            print(f"  Default Study: {Fore.LIGHTCYAN_EX}{dstd}{Fore.RESET}")
+        studies = info.studies
+        if studies is not None:
+            if len(studies) == 0:
+                print(
+                    f"{Fore.LIGHTRED_EX}You do not have access to any studies!{Fore.RESET}"
+                )
             else:
-                print(f"  Default Study: {Fore.LIGHTCYAN_EX}{dstd}{Fore.RESET}")
-            studies = info.studies
-            if studies is not None:
-                if len(studies) == 0:
+                print(f"You have access to {len(studies)} studies:")
+                for study_id, study_name in studies.items():
                     print(
-                        f"{Fore.LIGHTRED_EX}You do not have access to any studies!{Fore.RESET}"
+                        f"{Fore.LIGHTCYAN_EX}{study_id}{Fore.RESET} = "
+                        f"{Fore.YELLOW}{study_name}{Fore.RESET}"
                     )
-                else:
-                    print(f"You have access to {len(studies)} studies:")
-                    for study_id, study_name in studies.items():
-                        print(
-                            f"{Fore.LIGHTCYAN_EX}{study_id}{Fore.RESET} = "
-                            f"{Fore.YELLOW}{study_name}{Fore.RESET}"
-                        )
-            pass
+        pass
     pass
 
 
-def _run_dmp_study(study_prefix: str):
+def study(study_prefix: str):
     ccy = Fore.LIGHTCYAN_EX
     crd = Fore.LIGHTRED_EX
     cor = Fore.YELLOW
@@ -107,11 +113,11 @@ def _run_dmp_study(study_prefix: str):
                     login_state.change_study(ids[0])
                     ok = True
     if ok:
-        _run_dmp_state()
+        state()
     pass
 
 
-def _run_dmp_login(username: Optional[str]):
+def login(username: Optional[str]):
     crd = Fore.LIGHTRED_EX
     cgn = Fore.LIGHTGREEN_EX
     c0 = Fore.RESET
@@ -149,11 +155,11 @@ def _run_dmp_login(username: Optional[str]):
 
         pass
     print(f"{cgn}Login Succesful!{c0}. New login state:")
-    _run_dmp_state()
+    state()
     pass
 
 
-def _run_dmp_token():
+def token():
     crd = Fore.LIGHTRED_EX
     cgn = Fore.LIGHTGREEN_EX
     c0 = Fore.RESET
@@ -189,11 +195,11 @@ def _run_dmp_token():
         )
         pass
     print(f"{cgn}Set up successfully!{c0}. New login state:")
-    _run_dmp_state()
+    state()
     pass
 
 
-def _run_dmp_refresh():
+def refresh():
     crd = Fore.LIGHTRED_EX
     cor = Fore.YELLOW
     c0 = Fore.RESET
@@ -214,7 +220,7 @@ def _run_dmp_refresh():
                 raise ValueError("No study information present in response - aborting")
             print(f"{cor}Updating user state...{c0}")
             login_state.change_user(login_state.username, login_state.cookie, info)
-    _run_dmp_state()
+    state()
     pass
 
 
@@ -267,7 +273,7 @@ def _save_files_as_csv(csv_name: Union[str, Path], files: List[Dict[str, Any]]):
     pass
 
 
-def _run_dmp_files(study_id_keys: List[str]):
+def files(study_id_keys: List[str]):
     ccy = Fore.LIGHTCYAN_EX
     crd = Fore.LIGHTRED_EX
     cgn = Fore.LIGHTGREEN_EX
@@ -332,7 +338,7 @@ def _run_dmp_files(study_id_keys: List[str]):
     pass
 
 
-def _run_dmp_configure(folder: str):
+def configure(folder: str):
     folder = Path(folder)
     if not folder.is_absolute():
         raise ValueError(f'Expecting an absolute path but got "{folder}"')
@@ -444,7 +450,7 @@ def _get_filtered_list(
     return grouped
 
 
-def _run_dmp_list(
+def file_list(
     study: Optional[str],
     participants: Optional[List[str]],
     kinds: Optional[List[str]],
@@ -496,7 +502,7 @@ def _run_dmp_list(
     pass
 
 
-def _run_dmp_sync(
+def sync(
     study: Optional[str],
     participants: Optional[List[str]],
     kinds: Optional[List[str]],
@@ -626,7 +632,7 @@ def _run_dmp_sync(
     pass
 
 
-def _run_dmp_onefile(study: Optional[str], file_id: str, file_name: Optional[str]):
+def onefile(study: Optional[str], file_id: str, file_name: Optional[str]):
     ccy = Fore.LIGHTCYAN_EX
     crd = Fore.LIGHTRED_EX
     cgn = Fore.LIGHTGREEN_EX
@@ -691,6 +697,15 @@ def _run_dmp_onefile(study: Optional[str], file_id: str, file_name: Optional[str
     pass
 
 
+def upload(study_id: str, file_path: str, participant_id: str, device_id: str, start_date: int, end_date: int):
+    print(file_path)
+    path = Path(file_path)
+    payload = FileUploadPayload(study_id, path, participant_id, device_id, start_date, end_date)
+    with DmpConnection("dmpapp") as dc:
+        response = dc.upload(payload)
+        print(response)
+
+
 def dmp_app_full_help():
     print(
         """
@@ -745,6 +760,8 @@ sync [-p <participant>*] [-k <devicekind>*] [-d <deviceid>*] [-id <fileid>*] [-c
 
 onefile -id <fileid> -out <filename>
     Download one file. This command is intended for testing only
+    
+upload [-s <studyID>*] [-f <filePath>*] [-p <participantID>*] [-d <deviceID>*] [-sd <startDate>*] [-ed <endDate>*] 
 """
     )
     pass
@@ -892,6 +909,26 @@ def run_dmp_app(*arguments: str):
         help="The output file name, to be saved in the root of the data folder",
     )
 
+    parser_upload = subparsers.add_parser("upload", help="upload files")
+    parser_upload.add_argument(
+        "-s", type=str, dest="upload_s", help="specify study id"
+    )
+    parser_upload.add_argument(
+        "-f", type=str, dest="upload_f", help="file path"
+    )
+    parser_upload.add_argument(
+        "-p", type=str, dest="upload_p", help="participant id"
+    )
+    parser_upload.add_argument(
+        "-d", type=str, dest="upload_d", help="device id"
+    )
+    parser_upload.add_argument(
+        "-sd", type=int, dest="upload_sd", help="start date"
+    )
+    parser_upload.add_argument(
+        "-ed", type=int, dest="upload_ed", help="end date"
+    )
+
     args = parser.parse_args(arguments)
 
     # print(repr(args))
@@ -900,30 +937,32 @@ def run_dmp_app(*arguments: str):
     try:
         colorama.init()  # enable support for colored console output
         if cmd == "state":
-            _run_dmp_state()
+            state()
         elif cmd == "login":
-            _run_dmp_login(args.username)
+            login(args.username)
         elif cmd == "token":
-            _run_dmp_token()
+            token()
         elif cmd == "refresh":
-            _run_dmp_refresh()
+            refresh()
         elif cmd == "files":
-            _run_dmp_files(args.studyid)
+            files(args.studyid)
         elif cmd == "configure":
-            _run_dmp_configure(args.datafolder)
+            configure(args.datafolder)
         elif cmd == "study":
-            _run_dmp_study(args.studyprefix)
+            study(args.studyprefix)
         elif cmd == "list":
-            _run_dmp_list(None, args.list_p, args.list_k, args.list_d, args.list_id)
+            file_list(None, args.list_p, args.list_k, args.list_d, args.list_id)
         elif cmd == "sync":
             cap = args.sync_cap
             if cap < 0:
                 cap = 100000
-            _run_dmp_sync(
+            sync(
                 None, args.sync_p, args.sync_k, args.sync_d, args.sync_id, cap
             )
         elif cmd == "onefile":
-            _run_dmp_onefile(None, args.onefile_id, args.onefile_out)
+            onefile(None, args.onefile_id, args.onefile_out)
+        elif cmd == "upload":
+            upload(args.upload_s, args.upload_f, args.upload_p, args.upload_d, args.upload_sd, args.upload_ed)
         else:
             print(repr(args))
             raise ValueError(f'Internal error: no handler for command "{cmd}"')

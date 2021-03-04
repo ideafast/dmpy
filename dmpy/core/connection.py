@@ -305,12 +305,17 @@ class DmpConnection:
             }
         )
 
-        cookie = self._loginstate.cookie["cookie"]
         headers = {
-            "Content-Type": multipart_data.content_type,
-            "Cookie": f"connect.sid=s%{cookie}",
+            "Content-Type": multipart_data.content_type
         }
-
+        if self._loginstate.auth_method == 1:
+            if self._loginstate.cookie is None:
+                raise Exception("You are not logged in")
+            headers["Cookie"] = "connect.sid=" + self._loginstate.cookie["cookie"]
+        elif self._loginstate.auth_method == 2:
+            if self._loginstate.access_token is None:
+                raise Exception("no access token info setup")
+            headers["Authorization"] = self._loginstate.access_token["token"]
         # TODO: below works with the use of http client
         # self._conn.request("POST", "/graphql", multipart_data, headers)
         # res: http.client.HTTPResponse = self._conn.getresponse()
