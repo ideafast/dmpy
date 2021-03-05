@@ -107,9 +107,14 @@ class Dmpy:
             # Seconds to wait to establish connection with server
             connect = 4
             # Wait at most 5 minutes for server response between bytes sent
+            # required as server timeout after uploading large files (>2GB)
             read = 60 * 5 + 2
             response = requests.post(
-                self.url, data=monitor, headers=headers, timeout=(connect, read), stream=True
+                self.url,
+                data=monitor,
+                headers=headers,
+                timeout=(connect, read),
+                stream=True,
             )
             response.raise_for_status()
             log.debug(f"Response: {response.json()}")

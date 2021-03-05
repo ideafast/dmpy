@@ -18,10 +18,13 @@ Python 3.8 is used by default and can be installed and set as follows:
 $ pyenv install 3.8.0 && pyenv global 3.8.0
 ```
 
-Then install all dependencies for this project through poetry:
+Dependencies are split into three parts: `cli`, `client`, and `dev` as outlined in [./pyproject.toml](./pyproject.toml).
 
 ```sh
+# Installs all including devs but not "extras"
 $ poetry install
+# If you plan to run the CLI locally
+$ poetry install -E cli
 ```
 
 To use the virtual environment poetry created:

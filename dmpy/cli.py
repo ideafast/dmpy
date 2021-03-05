@@ -127,7 +127,7 @@ def _run_dmp_login(username: Optional[str]):
             f'Password for user "{username}": '
         )  # cannot use color in that string
 
-        if password == "":
+        if len(password) == 0:
             print(f"{crd}No password provided - aborting{c0}")
             exit(1)
 
