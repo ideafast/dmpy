@@ -106,9 +106,9 @@ class DmpConnection:
         :param server: The server name or None to use the default ('data.ideafast.eu')
         """
         if server is None:
-            server = "localhost:3000"
+            server = "data.ideafast.eu"
         self._server = server
-        self._conn = http.client.HTTPConnection(self._server)
+        self._conn = http.client.HTTPSConnection(self._server)
         self._loginstate = DmpLoginState(appname)
         pass
 
@@ -322,7 +322,7 @@ class DmpConnection:
         # data = res.read()
         # print(data, res.status, data.decode("utf-8"))
 
-        url = "http://localhost:3000/graphql"
+        url = "https://data.ideafast.eu/graphql"
         response = requests.post(url, data=multipart_data, headers=headers)
         # TODO: error handling ...
         return response.json()
