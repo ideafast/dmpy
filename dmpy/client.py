@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 
@@ -9,10 +10,11 @@ from requests_toolbelt.multipart.encoder import (
     MultipartEncoder,
     MultipartEncoderMonitor,
 )
-from tqdm import tqdm
 
 from .core.payloads import FileUploadPayload
 from .core.utils import read_text_resource
+
+log = logging.getLogger(__name__)
 
 
 class Dmpy:
@@ -37,8 +39,13 @@ class Dmpy:
                 },
             }
 
-            response = requests.post(self.url, json=request)
-            access_token = response.json()["data"]["issueAccessToken"]["accessToken"]
+            try:
+                response = requests.post(self.url, json=request)
+                response.raise_for_status()
+                response = response.json()
+                access_token = response["data"]["issueAccessToken"]["accessToken"]
+            except Exception:
+                log.error("Exception:", exc_info=True)
 
             set_key(self.env, "DMP_ACCESS_TOKEN", access_token)
             set_key(self.env, "DMP_ACCESS_TOKEN_GEN_TIME", str(now))
@@ -65,30 +72,51 @@ class Dmpy:
             }
         )
 
-        print(f"Payload: {encoder}\n")
+        log.debug(f"Payload: {encoder}\n")
 
-        with tqdm(total=encoder.len, unit="B", unit_scale=1, unit_divisor=1024) as bar:
-            monitor = MultipartEncoderMonitor(
-                encoder, lambda _monitor: bar.update(_monitor.bytes_read - bar.n)
+        # Store the percentage of progress. Used because bytes sent may be
+        # within a specific percentage, e.g., 90.07, 90.10, 90.14, etc.
+        # We only want to print this percentage once.
+        is_logged = 0
+
+        def progress(monitor: MultipartEncoderMonitor):
+            """Logs upload progress every N%."""
+            # Gain access to the variable in the enclosed scope
+            nonlocal is_logged
+
+            bytes_sent = monitor.bytes_read
+            percent = int(bytes_sent / monitor.len * 100)
+            # httplib's default blocksize.
+            # cannot be easily overriden: https://github.com/requests/toolbelt/issues/75
+            blocksize = 8192
+
+            # Only print when first bytes sent (i.e., it has started) OR
+            # when the first bytes of the next 10% are uploaded, e.g.,
+            if bytes_sent == blocksize or percent % 10 == 0 and is_logged != percent:
+                log.debug(f"{percent}% Uploaded | {bytes_sent} Bytes Sent")
+                is_logged = percent
+
+        monitor = MultipartEncoderMonitor(encoder, progress)
+
+        headers = {
+            "Content-Type": monitor.content_type,
+            "Authorization": self.access_token(),
+        }
+
+        try:
+            # Seconds to wait to establish connection with server
+            connect = 4
+            # Wait at most 5 minutes for server response between bytes sent
+            read = 60 * 5 + 2
+            response = requests.post(
+                self.url, data=monitor, headers=headers, timeout=(connect, read), stream=True
             )
-
-            headers = {
-                "Content-Type": monitor.content_type,
-                "Authorization": self.access_token(),
-            }
-
-            try:
-                response = requests.post(
-                    self.url, data=monitor, headers=headers, timeout=10
-                )
-                print(f"\nResponse: {response.json()}\n")
-                return True
-            except requests.exceptions.Timeout as err:
-                print(f"Timeout occurred: {err}")
-                return False
-            except Exception as err:
-                print(f"Unknown error: {err}")
-                return False
+            response.raise_for_status()
+            log.debug(f"Response: {response.json()}")
+            return True
+        except Exception:
+            log.error("Exception:", exc_info=True)
+        return False
 
     @staticmethod
     def checksum(path: Path, hash_factory=hashlib.sha256) -> str:
@@ -98,8 +126,11 @@ class Dmpy:
         :param hash_factory: allows overriding hash used (e.g., SHA256, blake, etc)
         :return a hex checksum of the file's contents
         """
+        log.info("Creating checksum")
         with open(path, "rb") as f:
             file_hash = hash_factory()
             while chunk := f.read(128 * file_hash.block_size):
                 file_hash.update(chunk)
-        return file_hash.hexdigest()
+        digest = file_hash.hexdigest()
+        log.info(f"Checksum created: {digest}")
+        return digest
