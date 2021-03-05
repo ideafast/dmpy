@@ -77,26 +77,31 @@ class Dmpy:
         # Store the percentage of progress. Used because bytes sent may be
         # within a specific percentage, e.g., 90.07, 90.10, 90.14, etc.
         # We only want to print this percentage once.
-        is_logged = 0
+        percent_uploaded = 0
 
-        def progress(monitor: MultipartEncoderMonitor):
-            """Logs upload progress every N%."""
-            # Gain access to the variable in the enclosed scope
-            nonlocal is_logged
+        def log_progress(monitor: MultipartEncoderMonitor):
+            """Logs data transfer progress when 10% of file uploaded."""
+            # Gain access to the variable in the outter scope
+            nonlocal percent_uploaded
 
             bytes_sent = monitor.bytes_read
-            percent = int(bytes_sent / monitor.len * 100)
+            upload_percent = int(bytes_sent / monitor.len * 100)
             # httplib's default blocksize.
             # cannot be easily overriden: https://github.com/requests/toolbelt/issues/75
             blocksize = 8192
 
-            # Only print when first bytes sent (i.e., it has started) OR
-            # when the first bytes of the next 10% are uploaded, e.g.,
-            if bytes_sent == blocksize or percent % 10 == 0 and is_logged != percent:
-                log.debug(f"{percent}% Uploaded | {bytes_sent} Bytes Sent")
-                is_logged = percent
+            if (
+                # 0%, i.e., first bytes sent
+                bytes_sent == blocksize
+                # Only print when first bytes sent (i.e., it has started) OR
+                # when the first bytes of the next 10% are uploaded, e.g.,
+                or upload_percent % 10 == 0
+                and percent_uploaded != upload_percent
+            ):
+                log.debug(f"{upload_percent}% Uploaded | {bytes_sent} Bytes Sent")
+                percent_uploaded = upload_percent
 
-        monitor = MultipartEncoderMonitor(encoder, progress)
+        monitor = MultipartEncoderMonitor(encoder, log_progress)
 
         headers = {
             "Content-Type": monitor.content_type,
@@ -117,6 +122,7 @@ class Dmpy:
                 stream=True,
             )
             response.raise_for_status()
+            log.info(f"Uploaded {percent_uploaded}%")
             log.debug(f"Response: {response.json()}")
             return True
         except Exception:
