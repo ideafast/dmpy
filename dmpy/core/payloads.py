@@ -12,13 +12,15 @@ from .utils import read_text_resource
 class FileUploadPayload:
     """The payload required to upload a file"""
 
-    study_id: str = get_key(".dmpy.env", "DMP_STUDY_ID")
     path: Path
     patient_id: str
     device_id: str
     start_wear: int
     end_wear: int
     content_hash: str
+    # Default value used from .env or can be overridden
+    # by assigning data to this varaible on class creation.
+    study_id: str = get_key(".dmpy.env", "DMP_STUDY_ID")
 
     def variables(self) -> Dict:
         """Dumps variables in a format suitable for DMP API,
