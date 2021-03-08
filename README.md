@@ -33,6 +33,12 @@ To use the virtual environment poetry created:
 $ poetry shell
 ```
 
+### Setting up .env
+
+Rename `.dmpy.env.example` to `.dmpy.env` and add relevant local/live values and credentials. 
+
+**Note:** `\n` in DMP_PUBLIC_KEY will need to be escaped, e.g., `\n` converted to `\\n` 
+
 ### Testing, Linting, & Code Formatting
 
 [Nox](https://nox.thea.codes/) is installed as a development dependency through poetry and is used used to simplfy running tests, code formatting, and linting. To run _all_ nox commands ([black](https://github.com/psf/black), [lint](https://flake8.pycqa.org/en/latest/), [tests](https://docs.pytest.org/en/latest/)):
