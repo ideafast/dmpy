@@ -1,0 +1,12 @@
+mutation uploadFile($studyId: String!, $file: Upload!, $description: String!, $hash: String!) {
+    uploadFile(studyId: $studyId, description: $description, file: $file, hash: $hash) {
+        id
+        fileName
+        studyId
+        projectId
+        fileSize
+        description
+        uploadedBy
+        hash
+    }
+}
