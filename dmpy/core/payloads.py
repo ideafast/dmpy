@@ -9,6 +9,7 @@ from .utils import read_text_resource
 @dataclass
 class FileUploadPayload:
     """The payload required to upload a file"""
+
     study_id: str
     path: Path
     patient_id: str
