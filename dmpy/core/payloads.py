@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict
 
+from dotenv import get_key
+
 from .utils import read_text_resource
 
 
@@ -10,7 +12,7 @@ from .utils import read_text_resource
 class FileUploadPayload:
     """The payload required to upload a file"""
 
-    study_id: str
+    study_id: str = get_key(".dmpy.env", "DMP_STUDY_ID")
     path: Path
     patient_id: str
     device_id: str
