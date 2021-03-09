@@ -184,7 +184,6 @@ class DmpConnection:
             token = safe_dict_get(issued_token, "accessToken")
             if token is not None:
                 self._loginstate.refresh_token(token)
-                self._loginstate.set_auth_method(2)
             else:
                 print(content)
 
