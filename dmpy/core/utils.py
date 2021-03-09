@@ -6,6 +6,9 @@ from importlib.resources import read_text
 from os import PathLike
 from pathlib import Path
 from typing import Any, List, Optional, Union
+import hashlib
+import base64
+from OpenSSL import crypto
 
 
 def read_text_resource(name) -> str:
@@ -173,3 +176,34 @@ class FileTransaction:
         pass
 
     pass
+
+
+def key_pair_generate(passphrase: bytes = b'idea-fast') -> tuple:
+    """
+    generate private key, public key pair as well as the signature
+    """
+    k = crypto.PKey()
+    k.generate_key(crypto.TYPE_RSA, 2048)
+
+    private_key = crypto.dump_privatekey(crypto.FILETYPE_PEM, k, passphrase=passphrase)
+    public_key = crypto.dump_publickey(crypto.FILETYPE_PEM, k)
+    pk_hash = hash_digest(public_key)
+    signature = signature_generate(private_key.decode(), pk_hash)
+
+    return private_key.decode(), public_key.decode(), signature
+
+
+def signature_generate(private_key: str, message: str, digest: str = 'sha256', passphrase: bytes = b'idea-fast') -> str:
+    k = crypto.load_privatekey(crypto.FILETYPE_PEM, private_key.encode('ascii'), passphrase=passphrase)
+    sig = crypto.sign(k, message, digest)
+    sig = base64.b64encode(sig)
+    return sig.decode()
+
+
+def re_generate_public_key(private_key: str, passphrase: bytes = b'idea-fast') -> str:
+    k = crypto.load_privatekey(crypto.FILETYPE_PEM, private_key.encode('ascii'), passphrase=passphrase)
+    return crypto.dump_publickey(crypto.FILETYPE_PEM, k).decode()
+
+
+def hash_digest(message) -> str:
+    return base64.b64encode(hashlib.sha256(message).digest()).decode()

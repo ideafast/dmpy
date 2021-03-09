@@ -17,7 +17,7 @@ from dmpy.core.data_cache import DmpDataCache
 from dmpy.core.file_db import DmpFileDb, DmpFileInfo
 from dmpy.core.payloads import FileUploadPayload
 from dmpy.core.user_info import DmpUserInfo
-from dmpy.core.utils import FileTransaction, save_json_with_backup
+from dmpy.core.utils import FileTransaction, save_json_with_backup, key_pair_generate, signature_generate, re_generate_public_key, hash_digest
 
 
 def state():
@@ -163,29 +163,66 @@ def token():
     crd = Fore.LIGHTRED_EX
     cgn = Fore.LIGHTGREEN_EX
     c0 = Fore.RESET
-    with DmpConnection("dmpapp") as dc:
+    app_name = "dmpapp"
+    with DmpConnection(app_name) as dc:
         login_state = dc.login_state
 
-        public_key_path = input("public key path: ")
-        if public_key_path is None or public_key_path == "":
-            raise ValueError("No public key path specified nor archived")
-        signature = input(
-            f'signature: '
-        )
+        if dc.login_state.auth_method == "0":
+            raise Exception("You need login to set up your keys")
 
-        if signature == "":
-            print(f"{crd}No signature provided - aborting{c0}")
-            exit(1)
-
-        access_token = {"public_key_path": public_key_path, "signature": signature, "token": None, "expiration": now() - 100}
-        login_state.change_user(
-            None,
-            None,
-            None,
-            access_token
-        )
         user_info_response = dc.user_info_request()
         info = user_info_response.content
+
+        private_key_path = input("private key path(or enter 1 to generate a new one): ")
+        if private_key_path is None or private_key_path == "":
+            raise ValueError("No private key path specified nor archived")
+
+        app_home = Path.home().joinpath("." + app_name)
+        public_key_file = app_home.joinpath("public.key")
+
+        if private_key_path == "1":
+            private_key, public_key, signature = key_pair_generate()
+            print("private key generated:")
+            print(private_key)
+            private_key_file = app_home.joinpath("private.key")
+            with private_key_file.open('wb') as pf:
+                pf.write(private_key.encode("ascii"))
+        else:
+            with open(private_key_path, 'r') as f:
+                private_key = f.read()
+                public_key = re_generate_public_key(private_key)
+                message = hash_digest(public_key)
+                signature = signature_generate(private_key, message)
+
+        with public_key_file.open('wb') as pf:
+            pf.write(public_key.encode("ascii"))
+
+        print("Your public key:")
+        print(public_key)
+        print("Your signature:")
+        print(signature)
+
+        register = input("register your public key now? (enter 1 to register or other to exit): ")
+
+        user_info_response = dc.user_info_request()
+        info = user_info_response.content
+
+        user_id = info["id"]
+
+        if register == "1":
+            response = dc.register_pubkey(public_key, signature, user_id)
+            print(response)
+            if "errors" not in response:
+                print(f"{cgn}register successfully.{c0}")
+            else:
+                print("register failed")
+                print(response["errors"])
+        else:
+            exit(1)
+
+        access_token = {"public_key_path": str(public_key_file), "signature": signature, "token": None,
+                        "expiration": now() - 100}
+
         username = info["username"]
         login_state.change_user(
             username,
@@ -194,7 +231,7 @@ def token():
             access_token
         )
         pass
-    print(f"{cgn}Set up successfully!{c0}. New login state:")
+    print("New login state:")
     state()
     pass
 

@@ -208,6 +208,13 @@ class DmpLoginState:
             self._save()
         pass
 
+    def refresh_token(self, token):
+        if self._state["access_token"] is None:
+            raise Exception("You need to set up your keys first")
+        self._state["access_token"]["token"] = token
+        self._state["access_token"]["expiration"] = now() + 200 * 60
+        self._save()
+
     def login(self, cookie: Dict[str, Any], info: Dict[str, Any]):
         """
         Record the login cookie for the current user.

@@ -106,9 +106,9 @@ class DmpConnection:
         :param server: The server name or None to use the default ('data.ideafast.eu')
         """
         if server is None:
-            server = "data.ideafast.eu"
+            server = "localhost:3000"
         self._server = server
-        self._conn = http.client.HTTPSConnection(self._server)
+        self._conn = http.client.HTTPConnection(self._server)
         self._loginstate = DmpLoginState(appname)
         pass
 
@@ -172,7 +172,7 @@ class DmpConnection:
         public_key_path = self._loginstate.access_token["public_key_path"]
         with open(public_key_path, 'r') as public_key:
             signature = self._loginstate.access_token["signature"]
-            variables = {"pubkey": public_key.read().replace("\n", "\\n"), "signature": signature}
+            variables = {"pubkey": public_key.read(), "signature": signature}
             self._loginstate.set_auth_method(0)
             response = self.graphql_request(query, variables)
             if response.status != 200:
@@ -183,9 +183,10 @@ class DmpConnection:
             issued_token = safe_dict_get(data, "issueAccessToken")
             token = safe_dict_get(issued_token, "accessToken")
             if token is not None:
-                self._loginstate.access_token["token"] = token
-                self._loginstate.access_token["expiration"] = now() + 200 * 60
+                self._loginstate.refresh_token(token)
                 self._loginstate.set_auth_method(2)
+            else:
+                print(content)
 
     def graphql_request(
         self, query: str, variables: any
@@ -408,6 +409,19 @@ class DmpConnection:
             )
         files2 = [reformat_file_entry(fe, study_name) for fe in files]
         return files2
+
+    @_check_expiration
+    def register_pubkey(self, public_key: str, signature: str, user_id: str):
+        query = read_text_resource("register_pubkeys.graphql")
+        variables = {
+            "pubkey": public_key,
+            "signature": signature,
+            "associatedUserId": user_id
+        }
+        response = self.graphql_request(query, variables)
+        if response.status != 200:
+            raise ValueError(f"Query was rejected by server (status {response.status})")
+        return json.loads(response.jsontext)
 
     def login_request(self, username: str, password: str, totp: str) -> DmpResponse:
         """
