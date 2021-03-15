@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict
 
-from dotenv import get_key
+import os
 
 from .utils import read_text_resource
 
@@ -20,7 +20,7 @@ class FileUploadPayload:
     content_hash: str
     # Default value used from .env or can be overridden
     # by assigning data to this varaible on class creation.
-    study_id: str = get_key(".dmpy.env", "DMP_STUDY_ID")
+    study_id: str = os.getenv("DMP_STUDY_ID")
 
     def variables(self) -> Dict:
         """Dumps variables in a format suitable for DMP API,

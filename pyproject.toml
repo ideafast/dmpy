@@ -9,7 +9,6 @@ python = "^3.8"
 # Client specific dependencies
 requests = "^2.24.0"
 requests_toolbelt = "^0.9.1"
-python-dotenv = "^0.15.0"
 # Made optional as only used by CLI.
 colorama =  {version = "^0.4.4", optional = true, extras = ["cli"]}
 pandas =  {version = "^1.1.4", optional = true, extras = ["cli"]}
