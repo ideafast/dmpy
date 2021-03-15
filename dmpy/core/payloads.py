@@ -20,7 +20,7 @@ class FileUploadPayload:
     content_hash: str
     # Default value used from .env or can be overridden
     # by assigning data to this varaible on class creation.
-    study_id: str = os.environ.get("DMP_STUDY_ID", None)
+    study_id: str = os.getenv("DMP_STUDY_ID")
 
     def variables(self) -> Dict:
         """Dumps variables in a format suitable for DMP API,

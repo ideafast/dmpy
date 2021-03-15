@@ -4,8 +4,8 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
+import os
 import requests
-from dotenv import get_key, load_dotenv, set_key
 from requests_toolbelt.multipart.encoder import (
     MultipartEncoder,
     MultipartEncoderMonitor,
@@ -18,14 +18,13 @@ log = logging.getLogger(__name__)
 
 
 class Dmpy:
-    def __init__(self, env_file: str = ".dmpy.env"):
-        self.env = env_file
-        load_dotenv(self.env)
-        self.url = get_key(self.env, "DMP_URL")
-        self.pubkey = get_key(self.env, "DMP_PUBLIC_KEY")
-        self.signature = get_key(self.env, "DMP_SIGNATURE")
-        self.last_created = int(get_key(self.env, "DMP_ACCESS_TOKEN_GEN_TIME"))
-        self.access_token = get_key(self.env, "DMP_ACCESS_TOKEN")
+    def __init__(self):
+        self.url = os.getenv("DMP_URL")
+        self.pubkey = os.getenv("DMP_PUBLIC_KEY")
+        self.signature = os.getenv("DMP_SIGNATURE")
+        # Store these in memory rather than file
+        self.access_token = os.getenv("DMP_ACCESS_TOKEN")
+        self.last_created = int(os.getenv("DMP_ACCESS_TOKEN_GEN_TIME"))
 
     def __access_token(self) -> str:
         """Obtain (or refresh) an access token."""
@@ -50,9 +49,9 @@ class Dmpy:
             except Exception:
                 log.error("Exception:", exc_info=True)
 
-            set_key(self.env, "DMP_ACCESS_TOKEN", access_token)
             self.access_token = access_token
-            set_key(self.env, "DMP_ACCESS_TOKEN_GEN_TIME", str(now))
+            os.environ["DMP_ACCESS_TOKEN"] = access_token
+            os.environ["DMP_ACCESS_TOKEN_GEN_TIME"] = str(now)
         return self.access_token
 
     def upload(self, payload: FileUploadPayload) -> bool:
