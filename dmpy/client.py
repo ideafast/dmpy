@@ -18,8 +18,8 @@ log = logging.getLogger(__name__)
 
 
 class Dmpy:
-    def __init__(self):
-        self.env = ".dmpy.env"
+    def __init__(self, env_file: str = ".dmpy.env"):
+        self.env = env_file
         load_dotenv(self.env)
         self.url = get_key(self.env, "DMP_URL")
         self.pubkey = get_key(self.env, "DMP_PUBLIC_KEY")
