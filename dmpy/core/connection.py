@@ -465,3 +465,111 @@ class DmpConnection:
         return self._loginstate
 
     pass
+
+    @_check_expiration
+    def create_data_curation(self, file_id: str, study_id: str, version: str, tag: str = None):
+        query = read_text_resource("create_data_curation.graphql")
+        variables = {
+            "file": file_id,
+            "studyId": study_id,
+            "version": version
+        }
+        if tag:
+            variables["tag"] = tag
+        response = self.graphql_request(query, variables)
+        if response.status != 200:
+            raise ValueError(f"Query was rejected by server (status {response.status})")
+        return json.loads(response.jsontext)
+
+    @_check_expiration
+    def create_field_curation(self, file_list: List[str], study_id: str, version: str, tag: str = None):
+        query = read_text_resource("create_field_curation.graphql")
+        variables = {
+            "file": file_list,
+            "studyId": study_id,
+            "dataVersionId": version
+        }
+        if tag:
+            variables["tag"] = tag
+        response = self.graphql_request(query, variables)
+        if response.status != 200:
+            raise ValueError(f"Query was rejected by server (status {response.status})")
+        return json.loads(response.jsontext)
+
+    @_check_expiration
+    def create_project(self, study_id: str, project_name: str,):
+        query = read_text_resource("create_project.graphql")
+        variables = {
+            "studyId": study_id,
+            "projectName": project_name
+        }
+        response = self.graphql_request(query, variables)
+        if response.status != 200:
+            raise ValueError(f"Query was rejected by server (status {response.status})")
+        return json.loads(response.jsontext)
+
+    @_check_expiration
+    def create_query(self, study_id: str, query_string: str, user_id: str, project_id: str):
+        query = read_text_resource("create_query.graphql")
+        data_query = {
+            "queryString": query_string,
+            "userId": user_id,
+            "studyId": study_id,
+            "projectId": project_id
+        }
+        variables = {
+            "query": data_query
+        }
+        response = self.graphql_request(query, variables)
+        if response.status != 200:
+            raise ValueError(f"Query was rejected by server (status {response.status})")
+        return json.loads(response.jsontext)
+
+    @_check_expiration
+    def create_query_curation(self, query_ids: List[str], study_id: str, project_id: str, version: str = None):
+        query = read_text_resource("create_query_curation.graphql")
+        variables = {
+            "queryId": query_ids,
+            "studyId": study_id,
+            "projectId": project_id,
+            "version": version
+        }
+        response = self.graphql_request(query, variables)
+        if response.status != 200:
+            raise ValueError(f"Query was rejected by server (status {response.status})")
+        return json.loads(response.jsontext)
+
+    @_check_expiration
+    def get_study_fields(self, study_id: str, field_tree_id: str):
+        query = read_text_resource("get_study_fields.graphql")
+        variables = {
+            "fieldTreeId": field_tree_id,
+            "studyId": study_id,
+        }
+        response = self.graphql_request(query, variables)
+        if response.status != 200:
+            raise ValueError(f"Query was rejected by server (status {response.status})")
+        return json.loads(response.jsontext)
+
+    @_check_expiration
+    def get_full_study(self, study_id: str):
+        query = read_text_resource("get_study.graphql")
+        variables = {
+            "studyId": study_id
+        }
+        response = self.graphql_request(query, variables)
+        if response.status != 200:
+            raise ValueError(f"Query was rejected by server (status {response.status})")
+        return json.loads(response.jsontext)
+
+    @_check_expiration
+    def get_query_by_id(self, query_id: str):
+        query = read_text_resource("get_query_by_id.graphql")
+        variables = {
+            "queryId": query_id
+        }
+        response = self.graphql_request(query, variables)
+        if response.status != 200:
+            raise ValueError(f"Query was rejected by server (status {response.status})")
+        return json.loads(response.jsontext)
+

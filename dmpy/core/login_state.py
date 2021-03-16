@@ -117,6 +117,10 @@ class DmpLoginState:
         self._appstate.save_state(None)
         self._reset(True)
 
+    def change_info(self, info: Optional[Dict[str, Any]]):
+        self._state["info"] = info
+        self._save()
+
     def change_user(
         self,
         username: Optional[str],

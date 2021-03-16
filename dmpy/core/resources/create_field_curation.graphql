@@ -1,0 +1,20 @@
+fragment ALL_FOR_JOB on Job {
+        id
+        studyId
+        projectId
+        jobType
+        requester
+        requestTime
+        receivedFiles
+        status
+        error
+        cancelled
+        cancelledTime
+        data
+    }
+
+mutation createDataCurationJob($file: [String]!, $studyId: String!, $tag: String!, $dataVersionId: String!) {
+        createFieldCurationJob(file: $file, studyId: $studyId, tag: $tag, dataVersionId: $dataVersionId) {
+            ...ALL_FOR_JOB
+        }
+}

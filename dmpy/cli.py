@@ -6,6 +6,7 @@ from getpass import getpass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from time import time as now
+import json
 
 import colorama
 import pandas as pd
@@ -17,7 +18,8 @@ from dmpy.core.data_cache import DmpDataCache
 from dmpy.core.file_db import DmpFileDb, DmpFileInfo
 from dmpy.core.payloads import FileUploadPayload
 from dmpy.core.user_info import DmpUserInfo
-from dmpy.core.utils import FileTransaction, save_json_with_backup, key_pair_generate, signature_generate, re_generate_public_key, hash_digest
+from dmpy.core.utils import FileTransaction, save_json_with_backup, key_pair_generate, signature_generate, \
+    re_generate_public_key, hash_digest, safe_dict_get
 
 
 def state():
@@ -172,6 +174,7 @@ def token():
 
         user_info_response = dc.user_info_request()
         info = user_info_response.content
+        user_id = info["id"]
 
         private_key_path = input("private key path(or enter 1 to generate a new one): ")
         if private_key_path is None or private_key_path == "":
@@ -185,6 +188,7 @@ def token():
             print("private key generated:")
             print(private_key)
             private_key_file = app_home.joinpath("private.key")
+            print(f"Writing your private key to: {private_key_file}")
             with private_key_file.open('wb') as pf:
                 pf.write(private_key.encode("ascii"))
         else:
@@ -194,20 +198,16 @@ def token():
                 message = hash_digest(public_key)
                 signature = signature_generate(private_key, message)
 
-        with public_key_file.open('wb') as pf:
-            pf.write(public_key.encode("ascii"))
-
         print("Your public key:")
         print(public_key)
         print("Your signature:")
         print(signature)
 
+        print(f"Writing your public key to: {public_key_file}")
+        with public_key_file.open('wb') as pf:
+            pf.write(public_key.encode("ascii"))
+
         register = input("register your public key now? (enter 1 to register or other to exit): ")
-
-        user_info_response = dc.user_info_request()
-        info = user_info_response.content
-
-        user_id = info["id"]
 
         if register == "1":
             response = dc.register_pubkey(public_key, signature, user_id)
@@ -216,7 +216,7 @@ def token():
                 print(f"{cgn}register successfully.{c0}")
             else:
                 print("register failed")
-                print(response["errors"])
+                raise Exception(response["errors"])
         else:
             exit(1)
 
@@ -256,7 +256,7 @@ def refresh():
             if dui.studies is None:
                 raise ValueError("No study information present in response - aborting")
             print(f"{cor}Updating user state...{c0}")
-            login_state.change_user(login_state.username, login_state.cookie, info)
+            login_state.change_info(info)
     state()
     pass
 
@@ -517,7 +517,7 @@ def file_list(
         frames = [frame for idx, frame in grouped]
         combo = pd.concat(frames)
         combo["t_from_utc"] = combo.apply(lambda df: (df["t_from"])[0:23], axis=1)
-        combo["file_id_prefix"] = combo.apply(lambda df: (df["file_id"])[0:14], axis=1)
+        combo["file_id"] = combo.apply(lambda df: (df["file_id"]), axis=1)
         combo = combo[
             [
                 "subject",
@@ -526,7 +526,7 @@ def file_list(
                 "t_from_utc",
                 "size",
                 "file_name",
-                "file_id_prefix",
+                "file_id",
             ]
         ]
         print(combo.to_string(index=False))
@@ -735,12 +735,157 @@ def onefile(study: Optional[str], file_id: str, file_name: Optional[str]):
 
 
 def upload(study_id: str, file_path: str, participant_id: str, device_id: str, start_date: int, end_date: int):
-    print(file_path)
     path = Path(file_path)
     payload = FileUploadPayload(study_id, path, participant_id, device_id, start_date, end_date)
     with DmpConnection("dmpapp") as dc:
         response = dc.upload(payload)
         print(response)
+
+
+def data_curation(study_id: str, file_id: str, version: str, tag: str):
+    print("Creating data curation job...")
+    with DmpConnection("dmpapp") as dc:
+        if study_id == "" or study_id is None:
+            study_id = dc.login_state.default_study
+        if file_id == "" or file_id is None:
+            raise Exception("Please specify the correct file id")
+        if version == "" or version is None:
+            raise Exception("Please specify the data version")
+        response = dc.create_data_curation(file_id, study_id, version, tag)
+        if "errors" not in response:
+            print("Data curation job created.")
+            data = safe_dict_get(response, "data")
+            job = safe_dict_get(data, "createDataCurationJob")
+            job_id = safe_dict_get(job, "id")
+            status = safe_dict_get(job, "status")
+            print(f"Job id: {job_id}, Status:{status}")
+            print("Please use jobs command to check the job status")
+        else:
+            print("Job creating failed")
+            raise Exception(response["errors"])
+        return response
+
+
+def field_curation(study_id: str, file_ids: List[str], version: str, tag: str):
+    print("Creating field curation job...")
+    with DmpConnection("dmpapp") as dc:
+        if study_id == "" or study_id is None:
+            study_id = dc.login_state.default_study
+        if file_ids is None or len(file_ids) == 0:
+            raise Exception("Please specify the correct file id")
+        if version is None or version == "":
+            raise Exception("Please specify the correct version")
+        response = dc.create_field_curation(file_ids, study_id, version, tag)
+        if "errors" not in response:
+            print("field curation job created.")
+            data = safe_dict_get(response, "data")
+            job = safe_dict_get(data, "createFieldCurationJob")
+            job_id = safe_dict_get(job, "id")
+            status = safe_dict_get(job, "status")
+            print(f"Job id: {job_id}, Status:{status}")
+            print("Please use jobs command to check the job status")
+        return response
+
+
+def create_query(study_id: str, query_string: str, project_id: str):
+    if query_string is None or query_string == "":
+        raise Exception("Please specify the correct query string")
+    if project_id is None or project_id == "":
+        raise Exception("Please specify the correct project id")
+    with DmpConnection("dmpapp") as dc:
+        if not dc.login_state.is_logged_in:
+            raise Exception("You must login first")
+        if study_id == "" or study_id is None:
+            study_id = dc.login_state.default_study
+        user_id = dc.login_state.info["id"]
+        response = dc.create_query(study_id, query_string, user_id, project_id)
+        if "errors" not in response:
+            print("query created.")
+            data = safe_dict_get(response, "data")
+            query_created = safe_dict_get(data, "createQuery")
+            query_id = safe_dict_get(query_created, "id")
+            print(f"query id: {query_id}")
+            execute = input("execute the query now? (enter 1 for yes, enter other to exit)")
+            if execute == "1":
+                query_response = dc.create_query_curation([query_id], study_id, project_id)
+                if "errors" not in query_response:
+                    print("Query job created.")
+                else:
+                    raise Exception(query_response["errors"])
+
+
+def get_query_result(query_id: str, save: bool = False):
+    if query_id == "" or query_id is None:
+        raise Exception("query id is required")
+    cache = DmpDataCache(None)
+    if not cache.is_configured:
+        print(
+            f'No data folder configured. Run "dmpapp configure <your-data-folder>" first'
+        )
+        exit(1)
+    data_folder = cache.data_folder
+    with DmpConnection("dmpapp") as dc:
+        response = dc.get_query_by_id(query_id)
+        if "errors" not in response:
+            data = safe_dict_get(response, "data")
+            query_response = safe_dict_get(data, "getQueryById")
+            status = safe_dict_get(query_response, "status")
+            if status != "FINISHED":
+                print(f"Query not finished. Status: {status}")
+                return None
+            else:
+                query_result = safe_dict_get(query_response, "queryResult")
+                if save:
+                    query_result_json = json.loads(query_result)
+                    file_path = data_folder.joinpath(f"{query_id}.json")
+                    with file_path.open('w') as f:
+                        json.dump(query_result_json, f)
+                return query_result
+        else:
+            raise Exception(response["errors"])
+
+
+def get_jobs(study_id: str, job_id: str):
+    with DmpConnection("dmpapp") as dc:
+        if study_id == "" or study_id is None:
+            study_id = dc.login_state.default_study
+        response = dc.get_full_study(study_id)
+        if "errors" not in response:
+            data = safe_dict_get(response, "data")
+            get_study = safe_dict_get(data, "getStudy")
+            jobs = safe_dict_get(get_study, "jobs")
+            for job in jobs:
+                if job_id:
+                    if job["id"] == job_id:
+                        print(f"ID: {job['id']}, Type: {job['jobType']}, Status: {job['status']}")
+                else:
+                    print(f"ID: {job['id']}, Type: {job['jobType']}, Status: {job['status']}")
+
+
+def get_field_trees(study_id: str, field_tree_id: str):
+    with DmpConnection("dmpapp") as dc:
+        if study_id == "" or study_id is None:
+            study_id = dc.login_state.default_study
+        response = dc.get_full_study(study_id)
+        if "errors" not in response:
+            data = safe_dict_get(response, "data")
+            get_study = safe_dict_get(data, "getStudy")
+            data_versions = safe_dict_get(get_study, "dataVersions")
+            for dv in data_versions:
+                field_trees = safe_dict_get(dv, "fieldTrees")
+                for field_tree in field_trees:
+                    if field_tree_id:
+                        if field_tree_id == field_tree:
+                            fields_response = dc.get_study_fields(study_id, field_tree_id)
+                    else:
+                        fields_response = dc.get_study_fields(study_id, field_tree)
+                    if fields_response:
+                        print(f"Field Tree Id:{field_tree}")
+                        if "errors" not in fields_response:
+                            data = safe_dict_get(fields_response, "data")
+                            fields = safe_dict_get(data, "getStudyFields")
+                            for field in fields:
+                                print(f"Id: {field['id']}, Field id: {field['fieldId']}, Field name: {field['fieldName']}, Path: {field['path']}")
 
 
 def dmp_app_full_help():
@@ -969,6 +1114,50 @@ def run_dmp_app(*arguments: str):
         "-ed", type=int, dest="upload_ed", help="end date"
     )
 
+    parser_data = subparsers.add_parser("data", help="create data curation job")
+    parser_data.add_argument(
+        "-f", type=str, dest="data_f", help="file id"
+    )
+    parser_data.add_argument(
+        "-s", type=str, dest="data_s", help="study id"
+    )
+    parser_data.add_argument(
+        "-v", type=str, dest="data_v", help="version number"
+    )
+    parser_data.add_argument(
+        "-t", type=str, dest="data_t", help="tag"
+    )
+
+    parser_field = subparsers.add_parser("field", help="create field curation job")
+    parser_field.add_argument(
+        "-f", type=str, nargs="+", dest="field_f", help="file ids"
+    )
+    parser_field.add_argument(
+        "-s", type=str, dest="field_s", help="study id"
+    )
+    parser_field.add_argument(
+        "-v", type=str, dest="field_v", help="version number"
+    )
+    parser_field.add_argument(
+        "-t", type=str, dest="field_t", help="tag"
+    )
+
+    parser_fields = subparsers.add_parser("fields", help="Get fields information")
+    parser_fields.add_argument(
+        "-s", type=str, dest="fields_s", help="study id"
+    )
+    parser_fields.add_argument(
+        "-id", type=str, dest="fields_id", help="field tree id"
+    )
+
+    parser_job = subparsers.add_parser("jobs", help="check study jobs")
+    parser_job.add_argument(
+        "-s", type=str, dest="jobs_s", help="study id"
+    )
+    parser_job.add_argument(
+        "-id", type=str, dest="jobs_id", help="job id"
+    )
+
     args = parser.parse_args(arguments)
 
     # print(repr(args))
@@ -1003,6 +1192,14 @@ def run_dmp_app(*arguments: str):
             onefile(None, args.onefile_id, args.onefile_out)
         elif cmd == "upload":
             upload(args.upload_s, args.upload_f, args.upload_p, args.upload_d, args.upload_sd, args.upload_ed)
+        elif cmd == "data":
+            data_curation(args.data_s, args.data_f, args.data_v, args.data_t)
+        elif cmd == "field":
+            field_curation(args.field_s, args.field_f, args.field_v, args.field_t)
+        elif cmd == "jobs":
+            get_jobs(args.jobs_s, args.jobs_id)
+        elif cmd == "fields":
+            get_field_trees(args.fields_s, args.fields_id)
         else:
             print(repr(args))
             raise ValueError(f'Internal error: no handler for command "{cmd}"')

@@ -1,0 +1,21 @@
+fragment ALL_FOR_FIELD on Field {
+  id
+  studyId
+  path
+  fieldId
+  fieldName
+  valueType
+  possibleValues
+  unit
+  itemType
+  numOfTimePoints
+  numOfMeasurements
+  notes
+  fieldTreeId
+}
+
+query getStudyFields($fieldTreeId: String!, $studyId: String!) {
+  getStudyFields(fieldTreeId: $fieldTreeId, studyId: $studyId) {
+    ...ALL_FOR_FIELD
+  }
+}

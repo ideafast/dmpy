@@ -1,0 +1,8 @@
+mutation createProject($studyId: String!, $projectName: String!, $approvedFields: [String]) {
+        createProject(studyId: $studyId, projectName: $projectName, approvedFields: $approvedFields) {
+            id
+            studyId
+            name
+            approvedFields
+        }
+}
