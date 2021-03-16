@@ -33,9 +33,14 @@ To use the virtual environment poetry created:
 $ poetry shell
 ```
 
-### Setting up .env
+### Setting up environmental variables
 
-Rename `.dmpy.env.example` to `.dmpy.env` and add relevant local/live values and credentials. 
+The `dmpy` module expects the following variables to be loaded in the environment:
+```
+DMP_URL=""
+DMP_PUBLIC_KEY=""
+DMP_SIGNATURE=""
+```
 
 **Note:** `\n` in DMP_PUBLIC_KEY will need to be escaped, e.g., `\n` converted to `\\n` 
 
