@@ -787,11 +787,17 @@ def field_curation(study_id: str, file_ids: List[str], version: str, tag: str):
         return response
 
 
-def create_query(study_id: str, query_string: str, project_id: str):
-    if query_string is None or query_string == "":
-        raise Exception("Please specify the correct query string")
+def create_query(study_id: str, field_ids: List[str], project_id: str):
+    if len(field_ids) == 0:
+        raise Exception("Please specify the correct field_ids")
     if project_id is None or project_id == "":
         raise Exception("Please specify the correct project id")
+
+    query_string = "\",\"".join(field_ids)
+    query_string_pre = "{\"data_requested\":[\""
+    query_string_suf = "\"],\"cohort\":[[]],\"new_fields\":[]}"
+    query_string = query_string_pre + query_string + query_string_suf
+
     with DmpConnection("dmpapp") as dc:
         if not dc.login_state.is_logged_in:
             raise Exception("You must login first")
@@ -812,6 +818,8 @@ def create_query(study_id: str, query_string: str, project_id: str):
                     print("Query job created.")
                 else:
                     raise Exception(query_response["errors"])
+        else:
+            raise Exception(response["errors"])
 
 
 def get_query_result(query_id: str, save: bool = False):
