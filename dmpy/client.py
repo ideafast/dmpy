@@ -132,6 +132,11 @@ class Dmpy:
                 stream=True,
             )
             response.raise_for_status()
+
+            if "errors" in response:
+                log.error(f"Response was: {response}")
+                raise Exception("UPLOAD_ERROR")
+
             log.info(f"Uploaded {percent_uploaded}%")
             log.debug(f"Response: {response.json()}")
             return True
