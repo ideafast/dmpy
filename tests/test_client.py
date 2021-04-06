@@ -1,15 +1,18 @@
-import os
+import pytest
 import logging
+import os
+
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from dmpy.client import Dmpy
+from dmpy.core.payloads import FileUploadPayload
 
 
 def test_secrets_set_default(mock_settings_env_vars) -> None:
-    assert Dmpy().last_created == 123456  # act
+    result = Dmpy().last_created
+
+    assert result == 123456
 
 
 def test_access_token_valid(mock_settings_env_vars) -> None:
@@ -18,7 +21,8 @@ def test_access_token_valid(mock_settings_env_vars) -> None:
     dmpy.last_created = int(datetime.utcnow().timestamp())  # act
 
     with patch("requests.get"):
-        assert dmpy.get_access_token() == "FAKE_TOKEN_1234"
+        result = dmpy.get_access_token()
+        assert result == "FAKE_TOKEN_1234"
 
 
 def test_access_token_expired(mock_settings_env_vars) -> None:
@@ -28,9 +32,9 @@ def test_access_token_expired(mock_settings_env_vars) -> None:
     )
 
     with patch("requests.post", return_value=response):
-        token = Dmpy().get_access_token()  # act
+        result = Dmpy().get_access_token()  # act
 
-        assert token == new_token
+        assert result == new_token
         assert os.getenv("DMP_ACCESS_TOKEN_GEN_TIME") != 123456
 
 
@@ -41,42 +45,52 @@ def test_access_token_response_http_error_thrown(
     response.raise_for_status.side_effect = Exception("TEST_EXCEPTION")
 
     with patch("requests.post", return_value=response), caplog.at_level(logging.ERROR):
-        token = Dmpy().get_access_token()
+        result = Dmpy().get_access_token()
 
-        assert token == os.getenv("DMP_ACCESS_TOKEN")
+        assert result == os.getenv("DMP_ACCESS_TOKEN")
         assert "TEST_EXCEPTION" in caplog.text
 
 
 def test_access_token_response_error_thrown(
-    caplog, mock_settings_env_vars, mock_dmp_token_error_response
+    caplog, mock_settings_env_vars, mock_dmp_token_response_error
 ) -> None:
     response = MagicMock()
-    response.json.return_value = mock_dmp_token_error_response
+    response.json.return_value = mock_dmp_token_response_error
 
     with patch("requests.post", return_value=response), caplog.at_level(logging.ERROR):
-        token = Dmpy().get_access_token()
+        result = Dmpy().get_access_token()
 
-        assert token == os.getenv("DMP_ACCESS_TOKEN")
+        assert result == os.getenv("DMP_ACCESS_TOKEN")
         assert "AUTH_ERROR" in caplog.text
 
 
-def test_upload_success() -> None:
-    pass
+def test_upload_success(mock_settings_env_vars, upload_payload) -> None:
+    response = MagicMock(json=lambda: {})
+
+    with patch("requests.post", return_value=response):
+        result = Dmpy().upload(upload_payload)
+
+        assert result == True
 
 
-def test_upload_thrown() -> None:
-    pass
+def test_upload_response_error(
+    mock_settings_env_vars, mock_dmp_upload_response_error, upload_payload, caplog
+) -> None:
+    dmpy = Dmpy()
+
+    # Ensures no new token is generated, skipping token's POST auth
+    dmpy.last_created = int(datetime.utcnow().timestamp())
+
+    response = MagicMock(json=lambda: mock_dmp_upload_response_error)
+
+    with patch("requests.post", return_value=response), caplog.at_level(logging.ERROR):
+        response = dmpy.upload(upload_payload)
+
+        assert response == False
+        assert "UPLOAD_ERROR" in caplog.text
 
 
-def test_upload_response_error() -> None:
-
-    pass
-
-
-def test_checksum_success(tmp_path) -> None:
-    path = tmp_path / "filename.zip"
-
-    path.write_text("example content")
-    result = Dmpy.checksum(path)
+def test_checksum_success(fake_file) -> None:
+    result = Dmpy.checksum(fake_file)
 
     assert result == "a2dee47ba6268925da97750ab742baf67f02e2fb54ce23d499fb66a5b0222903"
