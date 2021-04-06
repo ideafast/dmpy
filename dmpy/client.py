@@ -26,7 +26,7 @@ class Dmpy:
         self.access_token = os.getenv("DMP_ACCESS_TOKEN")
         self.last_created = int(os.getenv("DMP_ACCESS_TOKEN_GEN_TIME", 0))
 
-    def __access_token(self) -> str:
+    def get_access_token(self) -> str:
         """Obtain (or refresh) an access token."""
         now = int(datetime.utcnow().timestamp())
         # Refresh the token every 2 hours, i.e., below 200 minute limit.
@@ -108,7 +108,7 @@ class Dmpy:
 
         headers = {
             "Content-Type": monitor.content_type,
-            "Authorization": self.__access_token(),
+            "Authorization": self.get_access_token(),
         }
 
         try:
