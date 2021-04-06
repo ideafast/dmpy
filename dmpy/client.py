@@ -46,6 +46,12 @@ class Dmpy:
                 response.raise_for_status()
                 response = response.json()
 
+                # DMP does not use HTTP status_codes and instead returns
+                # 200 and a list of errors when one occurs.
+                if "errors" in response:
+                    log.error(f"Response was: {response}")
+                    raise Exception("AUTH_ERROR")
+
                 access_token = response["data"]["issueAccessToken"]["accessToken"]
 
                 self.access_token = access_token

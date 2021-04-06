@@ -1,24 +1,11 @@
 import os
+import logging
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from dmpy.client import Dmpy
-
-
-@pytest.fixture(autouse=True)
-def mock_settings_env_vars():
-    getenv = {
-        "DMP_STUDY_ID": "uuid-u-u-u-id",
-        "DMP_URL": "https://fakeurl.com/graphql",
-        "DMP_PUBLIC_KEY": "-----BEGIN PUBLIC KEY-----\\nABC123==\\n-----END PUBLIC KEY-----\\n",
-        "DMP_SIGNATURE": "1234/56789",
-        "DMP_ACCESS_TOKEN": "FAKE_TOKEN_1234",
-        "DMP_ACCESS_TOKEN_GEN_TIME": "123456",
-    }
-    with patch.dict(os.environ, getenv):
-        yield
 
 
 def test_secrets_set_default(mock_settings_env_vars) -> None:
@@ -47,8 +34,30 @@ def test_access_token_expired(mock_settings_env_vars) -> None:
         assert os.getenv("DMP_ACCESS_TOKEN_GEN_TIME") != 123456
 
 
-def test_access_token_response_error_thrown(mock_settings_env_vars) -> None:
-    pass
+def test_access_token_response_http_error_thrown(
+    caplog, mock_settings_env_vars
+) -> None:
+    response = MagicMock()
+    response.raise_for_status.side_effect = Exception("TEST_EXCEPTION")
+
+    with patch("requests.post", return_value=response), caplog.at_level(logging.ERROR):
+        token = Dmpy().get_access_token()
+
+        assert token == os.getenv("DMP_ACCESS_TOKEN")
+        assert "TEST_EXCEPTION" in caplog.text
+
+
+def test_access_token_response_error_thrown(
+    caplog, mock_settings_env_vars, mock_dmp_token_error_response
+) -> None:
+    response = MagicMock()
+    response.json.return_value = mock_dmp_token_error_response
+
+    with patch("requests.post", return_value=response), caplog.at_level(logging.ERROR):
+        token = Dmpy().get_access_token()
+
+        assert token == os.getenv("DMP_ACCESS_TOKEN")
+        assert "AUTH_ERROR" in caplog.text
 
 
 def test_upload_success() -> None:
@@ -60,6 +69,7 @@ def test_upload_thrown() -> None:
 
 
 def test_upload_response_error() -> None:
+
     pass
 
 
