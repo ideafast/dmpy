@@ -84,9 +84,9 @@ def test_upload_response_error(
     response = MagicMock(json=lambda: mock_dmp_upload_response_error)
 
     with patch("requests.post", return_value=response), caplog.at_level(logging.ERROR):
-        response = dmpy.upload(upload_payload)
+        result = dmpy.upload(upload_payload)
 
-        assert response == False
+        assert result == False
         assert "UPLOAD_ERROR" in caplog.text
 
 
