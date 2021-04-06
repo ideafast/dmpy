@@ -45,13 +45,14 @@ class Dmpy:
                 response = requests.post(self.url, json=request)
                 response.raise_for_status()
                 response = response.json()
+
                 access_token = response["data"]["issueAccessToken"]["accessToken"]
+
+                self.access_token = access_token
+                os.environ["DMP_ACCESS_TOKEN"] = access_token
+                os.environ["DMP_ACCESS_TOKEN_GEN_TIME"] = str(now)
             except Exception:
                 log.error("Exception:", exc_info=True)
-
-            self.access_token = access_token
-            os.environ["DMP_ACCESS_TOKEN"] = access_token
-            os.environ["DMP_ACCESS_TOKEN_GEN_TIME"] = str(now)
         return self.access_token
 
     def upload(self, payload: FileUploadPayload) -> bool:
