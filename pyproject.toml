@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dmpy"
-version = "0.1.0"
+version = "0.1.3"
 description = "Python package to access the IDEA-FAST Data Management Portal (DMP)"
 authors = ["Jay Rainey <jay.rainey@newcastle.ac.uk>", "Luc Cluitmans <luc.cluitmans@vtt.fi>"]
 
