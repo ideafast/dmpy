@@ -1,0 +1,16 @@
+{
+	"errors": [{
+		"message": "File description is invalid",
+		"locations": [{
+			"line": 1,
+			"column": 101
+		}],
+		"path": ["uploadFile"],
+		"extensions": {
+			"code": "CLIENT_MALFORMED_INPUT"
+		}
+	}],
+	"data": {
+		"uploadFile": null
+	}
+}

@@ -44,15 +44,15 @@ class Dmpy:
             try:
                 response = requests.post(self.url, json=request)
                 response.raise_for_status()
-                response = response.json()
+                json_response = response.json()
 
                 # DMP does not use HTTP status_codes and instead returns
                 # 200 and a list of errors when one occurs.
-                if "errors" in response:
-                    log.error(f"Response was: {response}")
+                if "errors" in json_response:
+                    log.error(f"Response was: {json_response}")
                     raise Exception("AUTH_ERROR")
 
-                access_token = response["data"]["issueAccessToken"]["accessToken"]
+                access_token = json_response["data"]["issueAccessToken"]["accessToken"]
 
                 self.access_token = access_token
                 os.environ["DMP_ACCESS_TOKEN"] = access_token
@@ -133,12 +133,15 @@ class Dmpy:
             )
             response.raise_for_status()
 
-            if "errors" in response:
-                log.error(f"Response was: {response}")
+            json_response = response.json()
+
+            if "errors" in json_response:
+                log.error(f"Response was: {json_response}")
                 raise Exception("UPLOAD_ERROR")
 
             log.info(f"Uploaded {percent_uploaded}%")
-            log.debug(f"Response: {response.json()}")
+            log.debug(f"Response: {json_response}")
+
             return True
         except Exception:
             log.error("Exception:", exc_info=True)
