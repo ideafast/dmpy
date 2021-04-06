@@ -23,7 +23,7 @@ class Dmpy:
         self.pubkey = os.getenv("DMP_PUBLIC_KEY")
         self.signature = os.getenv("DMP_SIGNATURE")
         # Store these in memory rather than file
-        self.access_token = os.getenv("DMP_ACCESS_TOKEN")
+        self.access_token = os.getenv("DMP_ACCESS_TOKEN", "")
         self.last_created = int(os.getenv("DMP_ACCESS_TOKEN_GEN_TIME", 0))
 
     def get_access_token(self) -> str:
