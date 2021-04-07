@@ -23,10 +23,10 @@ class Dmpy:
         self.pubkey = os.getenv("DMP_PUBLIC_KEY")
         self.signature = os.getenv("DMP_SIGNATURE")
         # Store these in memory rather than file
-        self.access_token = os.getenv("DMP_ACCESS_TOKEN")
+        self.access_token = os.getenv("DMP_ACCESS_TOKEN", "")
         self.last_created = int(os.getenv("DMP_ACCESS_TOKEN_GEN_TIME", 0))
 
-    def __access_token(self) -> str:
+    def get_access_token(self) -> str:
         """Obtain (or refresh) an access token."""
         now = int(datetime.utcnow().timestamp())
         # Refresh the token every 2 hours, i.e., below 200 minute limit.
@@ -44,14 +44,21 @@ class Dmpy:
             try:
                 response = requests.post(self.url, json=request)
                 response.raise_for_status()
-                response = response.json()
-                access_token = response["data"]["issueAccessToken"]["accessToken"]
+                json_response = response.json()
+
+                # DMP does not use HTTP status_codes and instead returns
+                # 200 and a list of errors when one occurs.
+                if "errors" in json_response:
+                    log.error(f"Response was: {json_response}")
+                    raise Exception("AUTH_ERROR")
+
+                access_token = json_response["data"]["issueAccessToken"]["accessToken"]
+
+                self.access_token = access_token
+                os.environ["DMP_ACCESS_TOKEN"] = access_token
+                os.environ["DMP_ACCESS_TOKEN_GEN_TIME"] = str(now)
             except Exception:
                 log.error("Exception:", exc_info=True)
-
-            self.access_token = access_token
-            os.environ["DMP_ACCESS_TOKEN"] = access_token
-            os.environ["DMP_ACCESS_TOKEN_GEN_TIME"] = str(now)
         return self.access_token
 
     def upload(self, payload: FileUploadPayload) -> bool:
@@ -108,7 +115,7 @@ class Dmpy:
 
         headers = {
             "Content-Type": monitor.content_type,
-            "Authorization": self.__access_token(),
+            "Authorization": self.get_access_token(),
         }
 
         try:
@@ -125,8 +132,16 @@ class Dmpy:
                 stream=True,
             )
             response.raise_for_status()
+
+            json_response = response.json()
+
+            if "errors" in json_response:
+                log.error(f"Response was: {json_response}")
+                raise Exception("UPLOAD_ERROR")
+
             log.info(f"Uploaded {percent_uploaded}%")
-            log.debug(f"Response: {response.json()}")
+            log.debug(f"Response: {json_response}")
+
             return True
         except Exception:
             log.error("Exception:", exc_info=True)

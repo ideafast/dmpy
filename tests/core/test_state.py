@@ -117,7 +117,7 @@ class StateTestCase(unittest.TestCase):
         print("---------------------------------------------------------")
         pass
 
-    def test_user_info(self):
+    def user_info(self):
         dc = DmpConnection("test_py_dmp_ro")
         self.assertTrue(dc.is_logged_in)
         info = dc.user_info_request()

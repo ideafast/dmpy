@@ -1,0 +1,16 @@
+{
+	"errors": [{
+		"message": "Signature vs Public key mismatched.",
+		"locations": [{
+			"line": 2,
+			"column": 5
+		}],
+		"path": ["issueAccessToken"],
+		"extensions": {
+			"code": "BAD_USER_INPUT"
+		}
+	}],
+	"data": {
+		"issueAccessToken": null
+	}
+}

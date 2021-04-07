@@ -5,7 +5,7 @@ import nox
 from nox.sessions import Session
 
 nox.options.sessions = "lint", "tests"
-locations = "dmpy", "noxfile.py"
+locations = "dmpy", "noxfile.py", "tests/test_client.py"
 
 
 def install_with_constraints(session: Session, *args: str, **kwargs: Any) -> None:
