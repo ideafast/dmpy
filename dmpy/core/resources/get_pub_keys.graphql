@@ -1,0 +1,10 @@
+query getPubkeys($pubkeyId: String, $associatedUserId: String) {
+    getPubkeys(pubkeyId: $pubkeyId, associatedUserId: $associatedUserId) {
+        id
+        pubkey
+        associatedUserId
+        jwtPubkey
+        refreshCounter
+        deleted
+    }
+}

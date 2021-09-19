@@ -1,0 +1,6 @@
+mutation uploadDataInArray($studyId: String!, $data: [DataClip]) {
+        uploadDataInArray(studyId: $studyId, data: $data) {
+            code
+            description
+        }
+    }

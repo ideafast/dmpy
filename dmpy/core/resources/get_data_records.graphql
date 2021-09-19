@@ -1,0 +1,3 @@
+query getDataRecords($studyId: String!, $queryString: JSON, $versionId: [String], $projectId: String) {
+    getDataRecords(studyId: $studyId, queryString: $queryString, versionId: $versionId, projectId: $projectId)
+}

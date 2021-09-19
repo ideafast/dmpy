@@ -106,9 +106,9 @@ class DmpConnection:
         :param server: The server name or None to use the default ('data.ideafast.eu')
         """
         if server is None:
-            server = "localhost:3000"
+            server = "data.ideafast.eu"
         self._server = server
-        self._conn = http.client.HTTPConnection(self._server)
+        self._conn = http.client.HTTPSConnection(self._server)
         self._loginstate = DmpLoginState(appname)
         pass
 
@@ -540,12 +540,14 @@ class DmpConnection:
         return json.loads(response.jsontext)
 
     @_check_expiration
-    def get_study_fields(self, study_id: str, field_tree_id: str):
+    def get_study_fields(self, study_id: str, field_tree_id: str = None):
         query = read_text_resource("get_study_fields.graphql")
         variables = {
-            "fieldTreeId": field_tree_id,
             "studyId": study_id,
         }
+
+        if field_tree_id:
+            variables["fieldTreeId"] = field_tree_id
         response = self.graphql_request(query, variables)
         if response.status != 200:
             raise ValueError(f"Query was rejected by server (status {response.status})")
@@ -571,5 +573,13 @@ class DmpConnection:
         response = self.graphql_request(query, variables)
         if response.status != 200:
             raise ValueError(f"Query was rejected by server (status {response.status})")
+        return json.loads(response.jsontext)
+
+    @_check_expiration
+    def execute_graphql(self, query_file_name, variables):
+        query = read_text_resource(query_file_name)
+        response = self.graphql_request(query, variables)
+        if response.status != 200:
+            raise ValueError(f"Query was rejected by server (status {response.status}) : {response.jsontext}")
         return json.loads(response.jsontext)
 

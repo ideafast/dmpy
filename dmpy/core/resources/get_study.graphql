@@ -1,55 +1,43 @@
 query getStudy($studyId: String!) {
-  getStudy(studyId: $studyId) {
-    id
-    name
-    createdBy
-    jobs {
-      ...ALL_FOR_JOB
-    }
-    projects {
-      id
-      studyId
-      name
-    }
-    roles {
-      id
-      name
-      permissions
-      projectId
-      studyId
-      users {
+    getStudy(studyId: $studyId) {
         id
-        firstname
-        lastname
-        organisation
-        username
-      }
+        name
+        createdBy
+        description
+        type
+        ontologyTree {
+            fieldId
+            path
+        }
+        jobs {
+            ...ALL_FOR_JOB
+        }
+        projects {
+            id
+            studyId
+            name
+        }
+        files {
+            id
+            fileName
+            studyId
+            projectId
+            fileSize
+            description
+            uploadTime
+            uploadedBy
+            hash
+        }
+        numOfSubjects
+        currentDataVersion
+        dataVersions {
+            id
+            version
+            tag
+            updateDate
+            contentId
+        }
     }
-    files {
-      id
-      fileName
-      studyId
-      projectId
-      fileSize
-      description
-      uploadTime
-      uploadedBy
-      hash
-    }
-    numOfSubjects
-    numOfRecords
-    currentDataVersion
-    dataVersions {
-      id
-      version
-      tag
-      updateDate
-      jobId
-      extractedFrom
-      contentId
-      fieldTrees
-    }
-  }
 }
 
 fragment ALL_FOR_JOB on Job {

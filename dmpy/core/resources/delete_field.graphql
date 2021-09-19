@@ -3,7 +3,6 @@ fragment ALL_FOR_FIELD on Field {
         studyId
         fieldId
         fieldName
-        tableName
         dataType
         possibleValues {
             code
@@ -12,11 +11,10 @@ fragment ALL_FOR_FIELD on Field {
         unit
         comments
         dateAdded
-        dateDeleted
     }
 
-query getStudyFields($studyId: String!, $projectId: String) {
-        getStudyFields(studyId: $studyId, projectId: $projectId) {
+mutation deleteField($studyId: String!, $fieldId: String!) {
+        deleteField(studyId: $studyId, fieldId: $fieldId) {
             ...ALL_FOR_FIELD
         }
     }

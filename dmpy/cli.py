@@ -155,6 +155,22 @@ def login(username: Optional[str]):
             None
         )
 
+        pub_key_variables = {
+            "associatedUserId": info["id"]
+        }
+        pub_key_response = dc.execute_graphql("get_pub_keys.graphql", pub_key_variables)
+
+        if "errors" not in pub_key_response:
+            pub_keys = pub_key_response["data"]["getPubkeys"]
+            if len(pub_keys) == 0:
+                print("You haven't registered any public keys.")
+                generate = input("Do you want to generate a new one(y/n):")
+            else:
+                print("You have registered the following public key:")
+                for pub_key in pub_keys:
+                    print(pub_key["jwtPubkey"])
+        else:
+            raise Exception(pub_key_response["errors"])
         pass
     print(f"{cgn}Login Succesful!{c0}. New login state:")
     state()
@@ -308,6 +324,37 @@ def _save_files_as_csv(csv_name: Union[str, Path], files: List[Dict[str, Any]]):
             pass
         trx.commit()
     pass
+
+
+def study_info(study_id: str):
+    with DmpConnection("dmpapp") as dc:
+        if study_id == "" or study_id is None:
+            study_id = dc.login_state.default_study
+
+    variables = {
+        "studyId": study_id
+    }
+
+    response = dc.execute_graphql("get_study.graphql", variables)
+    if "errors" not in response:
+        get_study_info = response["data"]["getStudy"]
+        print(f"Study id: {get_study_info['id']}")
+        print(f"Study name: {get_study_info['name']}")
+        print(f"Study type: {get_study_info['type'] }")
+        jobs = get_study_info["jobs"]
+        projects = get_study_info["projects"]
+        data_versions = get_study_info["dataVersions"]
+        files_list = get_study_info["files"]
+        print(f"There are {len(projects)} project(s) in this study:")
+        for project in projects:
+            print(f"  Project id: {project['id']}")
+            print(f"  Project name: {project['name']}")
+        print(f"There are {len(data_versions)} data version(s) in this study. The current data version: "
+              f"{get_study_info['currentDataVersion']}")
+        print(f"There are {len(jobs)} job(s) in this study. Use get_job function to view detail jobs")
+
+    else:
+        raise Exception(response["errors"])
 
 
 def files(study_id_keys: List[str]):
@@ -489,10 +536,10 @@ def _get_filtered_list(
 
 def file_list(
     study: Optional[str],
-    participants: Optional[List[str]],
-    kinds: Optional[List[str]],
-    devices: Optional[List[str]],
-    fids: Optional[List[str]],
+    fids: Optional[List[str]] = None,
+    participants: Optional[List[str]] = None,
+    kinds: Optional[List[str]] = None,
+    devices: Optional[List[str]] = None,
 ):
     """
     Implements "dmpapp list"
@@ -541,11 +588,11 @@ def file_list(
 
 def sync(
     study: Optional[str],
-    participants: Optional[List[str]],
-    kinds: Optional[List[str]],
-    devices: Optional[List[str]],
-    fids: Optional[List[str]],
-    cap: int,
+    participants: Optional[List[str]]=None,
+    kinds: Optional[List[str]]=None,
+    devices: Optional[List[str]]=None,
+    fids: Optional[List[str]]=None,
+    cap: int=0,
 ):
     crd = Fore.LIGHTRED_EX
     cgn = Fore.LIGHTGREEN_EX
@@ -870,30 +917,125 @@ def get_jobs(study_id: str, job_id: str):
                     print(f"ID: {job['id']}, Type: {job['jobType']}, Status: {job['status']}")
 
 
-def get_field_trees(study_id: str, field_tree_id: str):
+def get_study_fields(study_id: str):
     with DmpConnection("dmpapp") as dc:
         if study_id == "" or study_id is None:
             study_id = dc.login_state.default_study
-        response = dc.get_full_study(study_id)
+        response = dc.get_study_fields(study_id)
         if "errors" not in response:
             data = safe_dict_get(response, "data")
-            get_study = safe_dict_get(data, "getStudy")
-            data_versions = safe_dict_get(get_study, "dataVersions")
-            for dv in data_versions:
-                field_trees = safe_dict_get(dv, "fieldTrees")
-                for field_tree in field_trees:
-                    if field_tree_id:
-                        if field_tree_id == field_tree:
-                            fields_response = dc.get_study_fields(study_id, field_tree_id)
-                    else:
-                        fields_response = dc.get_study_fields(study_id, field_tree)
-                    if fields_response:
-                        print(f"Field Tree Id:{field_tree}")
-                        if "errors" not in fields_response:
-                            data = safe_dict_get(fields_response, "data")
-                            fields = safe_dict_get(data, "getStudyFields")
-                            for field in fields:
-                                print(f"Id: {field['id']}, Field id: {field['fieldId']}, Field name: {field['fieldName']}, Path: {field['path']}")
+
+            fields = safe_dict_get(data, "getStudyFields")
+            for field in fields:
+                print(f"field id: {field['fieldId']}, field name: {field['fieldName']}, data type: {field['dataType']},"
+                      f" unit:{field['unit']}, comments:{field['comments']}")
+            return fields
+
+
+def create_new_field(study_id:str, field_id:str, field_name:str, data_type:str, possible_values:List=None, unit:str=None, comments:str=None):
+    with DmpConnection("dmpapp") as dc:
+        if study_id == "" or study_id is None:
+            study_id = dc.login_state.default_study
+
+        if data_type == "cat" and possible_values is None:
+            raise Exception("possible values needed when data_type is 'cat'")
+
+        field_input = {
+            "fieldId": field_id,
+            "fieldName": field_name,
+            "dataType": data_type
+        }
+        if possible_values:
+            field_input["possibleValues"] = possible_values
+        if unit:
+            field_input["unit"] = unit
+        if comments:
+            field_input["comments"] = comments
+        variables = {
+            "studyId": study_id,
+            "fieldInput": field_input
+        }
+
+        response = dc.execute_graphql("create_new_field.graphql", variables)
+        if "errors" not in response:
+            print("Field created")
+        else:
+            raise Exception(response["errors"])
+
+
+def delete_field(study_id: str, field_id: str):
+    with DmpConnection("dmpapp") as dc:
+        if study_id == "" or study_id is None:
+            study_id = dc.login_state.default_study
+
+    variables = {
+        "studyId": study_id,
+        "fieldId": field_id
+    }
+
+    response = dc.execute_graphql("delete_field.graphql", variables)
+    if "errors" not in response:
+        print("Field deleted")
+    else:
+        raise Exception(response["errors"])
+
+
+def upload_data_in_array(study_id: str, data: List[dict]):
+    with DmpConnection("dmpapp") as dc:
+        if study_id == "" or study_id is None:
+            study_id = dc.login_state.default_study
+
+    variables = {
+        "studyId": study_id,
+        "data": data
+    }
+
+    response = dc.execute_graphql("upload_data_in_array.graphql", variables)
+    if "errors" not in response:
+        print("data uploaded")
+    else:
+        raise Exception(response["errors"])
+
+
+def delete_data_record(study_id: str, subject_id: str):
+    with DmpConnection("dmpapp") as dc:
+        if study_id == "" or study_id is None:
+            study_id = dc.login_state.default_study
+
+    variables = {
+        "studyId": study_id,
+        "subjectId": subject_id
+        # "fieldIds": field_ids,
+        # "visitId": visit_id
+    }
+
+    response = dc.execute_graphql("delete_data_records.graphql", variables)
+    if "errors" not in response:
+        print("Data deleted")
+    else:
+        raise Exception(response["errors"])
+
+
+def get_data_records(study_id: str, query_string: str = None, version_ids: List[str] = None):
+    with DmpConnection("dmpapp") as dc:
+        if study_id == "" or study_id is None:
+            study_id = dc.login_state.default_study
+
+    variables = {
+        "studyId": study_id
+    }
+
+    if query_string:
+        variables["queryString"] = query_string
+
+    if version_ids:
+        variables["versionId"] = version_ids
+
+    response = dc.execute_graphql("get_data_records.graphql", variables)
+    if "errors" not in response:
+        return response["data"]["getDataRecords"]["data"]
+    else:
+        raise Exception(response["errors"])
 
 
 def dmp_app_full_help():
@@ -1207,7 +1349,7 @@ def run_dmp_app(*arguments: str):
         elif cmd == "jobs":
             get_jobs(args.jobs_s, args.jobs_id)
         elif cmd == "fields":
-            get_field_trees(args.fields_s, args.fields_id)
+            get_study_fields(args.fields_s, args.fields_id)
         else:
             print(repr(args))
             raise ValueError(f'Internal error: no handler for command "{cmd}"')

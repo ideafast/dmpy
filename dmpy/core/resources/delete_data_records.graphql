@@ -1,0 +1,6 @@
+mutation deleteDataRecords($studyId: String!, $subjectId: String, $visitId: String, $fieldIds: [String]) {
+        deleteDataRecords(studyId: $studyId, subjectId: $subjectId, visitId: $visitId, fieldIds: $fieldIds) {
+            code
+            description
+        }
+    }
