@@ -123,7 +123,8 @@ def login(username: Optional[str]):
     crd = Fore.LIGHTRED_EX
     cgn = Fore.LIGHTGREEN_EX
     c0 = Fore.RESET
-    with DmpConnection("dmpapp") as dc:
+    app_name = "dmpapp"
+    with DmpConnection(app_name) as dc:
         login_state = dc.login_state
         username = username or login_state.username
 
@@ -155,88 +156,92 @@ def login(username: Optional[str]):
             None
         )
 
-        pub_key_variables = {
-            "associatedUserId": info["id"]
-        }
-        pub_key_response = dc.execute_graphql("get_pub_keys.graphql", pub_key_variables)
+        print("Token authentication requires your public key and signature. You won't need to login again on this "
+              "machine with token authentication unless you log out.")
+        use_token = input("Use token authentication(yes/no):")
 
-        if "errors" not in pub_key_response:
-            pub_keys = pub_key_response["data"]["getPubkeys"]
-            if len(pub_keys) == 0:
-                print("You haven't registered any public keys.")
-                generate = input("Do you want to generate a new one(y/n):")
+        if use_token == "yes":
+            pub_key_variables = {
+                "associatedUserId": info["id"]
+            }
+            pub_key_response = dc.execute_graphql("get_pub_keys.graphql", pub_key_variables)
+
+            reg = False
+            pub_key = ""
+            if "errors" not in pub_key_response:
+                pub_keys = pub_key_response["data"]["getPubkeys"]
+                if len(pub_keys) == 0:
+                    print("You haven't registered any public keys.")
+                else:
+                    reg = True
+                    print("You have registered the following public key:")
+                    for pub_key in pub_keys:
+                        pub_key = pub_key["pubkey"]
+                        pub_key = pub_key.replace('\n','\\n')
+                        print(pub_key)
+
             else:
-                print("You have registered the following public key:")
-                for pub_key in pub_keys:
-                    print(pub_key["jwtPubkey"])
-        else:
-            raise Exception(pub_key_response["errors"])
+                raise Exception(pub_key_response["errors"])
+
+            app_home = Path.home().joinpath("." + app_name)
+            pubkey_path = app_home.joinpath("public.key")
+
+            if reg:
+                with pubkey_path.open('w') as pf:
+                    pf.write(str(pub_key))
+                signature_path = input("signature file path:")
+
+            else:
+                print("please provide your public key and signature path")
+                pubkey_path = input("public key file path:")
+                signature_path = input("signature file path:")
+
+            access_token = {"public_key_path": str(pubkey_path), "signature_path": signature_path, "token": None,
+                            "expiration": now() - 100}
+
+            login_state.change_user(
+                username,
+                None,
+                info,
+                access_token
+            )
+            dc.refresh_token()
+
         pass
     print(f"{cgn}Login Succesful!{c0}. New login state:")
     state()
     pass
 
 
-def token():
-    crd = Fore.LIGHTRED_EX
-    cgn = Fore.LIGHTGREEN_EX
-    c0 = Fore.RESET
+def logout():
+    print("log out successful!")
+
+
+def token(pubkey_path: Optional[str], signature_path: Optional[str]):
     app_name = "dmpapp"
     with DmpConnection(app_name) as dc:
-        login_state = dc.login_state
-
         if dc.login_state.auth_method == "0":
             raise Exception("You need login to set up your keys")
-
+        login_state = dc.login_state
+        login_state.set_auth_method(1)
         user_info_response = dc.user_info_request()
         info = user_info_response.content
-        user_id = info["id"]
 
-        private_key_path = input("private key path(or enter 1 to generate a new one): ")
-        if private_key_path is None or private_key_path == "":
-            raise ValueError("No private key path specified nor archived")
+        print("To set up JWT token authentication. You must have your public key and signature ready. "
+              "If you don't have them, please go to DMP \"My account\"(https://data.ideafast.eu/profilemnt) "
+              "to generate and download")
 
-        app_home = Path.home().joinpath("." + app_name)
-        public_key_file = app_home.joinpath("public.key")
+        if not pubkey_path:
+            pubkey_path = input("public key path:")
 
-        if private_key_path == "1":
-            private_key, public_key, signature = key_pair_generate()
-            print("private key generated:")
-            print(private_key)
-            private_key_file = app_home.joinpath("private.key")
-            print(f"Writing your private key to: {private_key_file}")
-            with private_key_file.open('wb') as pf:
-                pf.write(private_key.encode("ascii"))
-        else:
-            with open(private_key_path, 'r') as f:
-                private_key = f.read()
-                public_key = re_generate_public_key(private_key)
-                message = hash_digest(public_key)
-                signature = signature_generate(private_key, message)
+        if pubkey_path is None or pubkey_path == "":
+            raise ValueError("No public key path specified")
+        if not signature_path:
+            signature_path = input("signature file path:")
+        if signature_path is None or signature_path == "":
+            raise ValueError("No signature file path specified")
 
-        print("Your public key:")
-        print(public_key)
-        print("Your signature:")
-        print(signature)
-
-        print(f"Writing your public key to: {public_key_file}")
-        with public_key_file.open('wb') as pf:
-            pf.write(public_key.encode("ascii"))
-
-        register = input("register your public key now? (enter 1 to register or other to exit): ")
-
-        if register == "1":
-            response = dc.register_pubkey(public_key, signature, user_id)
-            print(response)
-            if "errors" not in response:
-                print(f"{cgn}register successfully.{c0}")
-            else:
-                print("register failed")
-                raise Exception(response["errors"])
-        else:
-            exit(1)
-
-        access_token = {"public_key_path": str(public_key_file), "signature": signature, "token": None,
+        access_token = {"public_key_path": str(pubkey_path), "signature_path": signature_path, "token": None,
                         "expiration": now() - 100}
 
         username = info["username"]
@@ -246,6 +251,7 @@ def token():
             info,
             access_token
         )
+        dc.refresh_token()
         pass
     print("New login state:")
     state()
@@ -673,6 +679,7 @@ def sync(
                 f"{cbl}{dfi.file_id}{c0}: {cor}{dfi.file_size:10}{c0} {cgn}{str(p)}{c0}"
             )
 
+        downloaded_files = []
         if len(outdated_files) == 0:
             print(f"{cgn}No files to download - all selected files are up to date!{c0}")
         else:
@@ -695,6 +702,7 @@ def sync(
                 status = dc.download_file(dfi.file_id, full_name, progress)
                 if status == 200:
                     print(f" {cgn}{status} - OK{c0}")
+                    downloaded_files.append(dfi.path_name())
                 else:
                     print(f" {crd}{status} - FAIL{c0}")
 
@@ -713,7 +721,7 @@ def sync(
                 f"There are {crd}{remaining}{c0} more files to download. Consider using the -cap option"
             )
 
-    pass
+    return downloaded_files
 
 
 def onefile(study: Optional[str], file_id: str, file_name: Optional[str]):
@@ -1038,6 +1046,18 @@ def get_data_records(study_id: str, query_string: str = None, version_ids: List[
         raise Exception(response["errors"])
 
 
+def get_study_files(study_id: str):
+    with DmpConnection("dmpapp") as dc:
+        if study_id == "" or study_id is None:
+            study_id = dc.login_state.default_study
+        response = dc.get_full_study(study_id)
+        if "errors" not in response:
+            data = safe_dict_get(response, "data")
+            get_study = safe_dict_get(data, "getStudy")
+            study_files = safe_dict_get(get_study, "files")
+            return study_files
+
+
 def dmp_app_full_help():
     print(
         """
@@ -1128,6 +1148,18 @@ def run_dmp_app(*arguments: str):
 
     parser_token = subparsers.add_parser(  # noqa
         "token", help="set public key and signature to get your access token"
+    )
+    parser_token.add_argument(
+        "-p",
+        type=str,
+        dest="pubkey_path",
+        help="Public key path",
+    )
+    parser_token.add_argument(
+        "-s",
+        type=str,
+        dest="sig_path",
+        help="signature path",
     )
 
     parser_refresh = subparsers.add_parser(  # noqa
@@ -1320,7 +1352,7 @@ def run_dmp_app(*arguments: str):
         elif cmd == "login":
             login(args.username)
         elif cmd == "token":
-            token()
+            token(args.pubkey_path, args.sig_path)
         elif cmd == "refresh":
             refresh()
         elif cmd == "files":

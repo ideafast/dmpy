@@ -1,43 +1,67 @@
 query getStudy($studyId: String!) {
-    getStudy(studyId: $studyId) {
-        id
-        name
-        createdBy
-        description
-        type
-        ontologyTree {
-            fieldId
-            path
-        }
-        jobs {
-            ...ALL_FOR_JOB
-        }
-        projects {
-            id
-            studyId
-            name
-        }
-        files {
-            id
-            fileName
-            studyId
-            projectId
-            fileSize
-            description
-            uploadTime
-            uploadedBy
-            hash
-        }
-        numOfSubjects
-        currentDataVersion
-        dataVersions {
-            id
-            version
-            tag
-            updateDate
-            contentId
-        }
+  getStudy(studyId: $studyId) {
+    id
+    name
+    createdBy
+    description
+    type
+    ontologyTree {
+      fieldId
+      path
+      __typename
     }
+    jobs {
+      ...ALL_FOR_JOB
+      __typename
+    }
+    projects {
+      id
+      studyId
+      name
+      __typename
+    }
+    roles {
+      id
+      name
+      permissions
+      projectId
+      studyId
+      users {
+        id
+        firstname
+        lastname
+        organisation
+        username
+        __typename
+      }
+      __typename
+    }
+    files {
+      id
+      fileName
+      studyId
+      projectId
+      fileSize
+      description
+      uploadTime
+      uploadedBy
+      hash
+      __typename
+    }
+    subjects
+    visits
+    numOfRecords
+    currentDataVersion
+    dataVersions {
+      id
+      version
+      tag
+      updateDate
+      contentId
+      __typename
+    }
+    __typename
+  }
 }
 
 fragment ALL_FOR_JOB on Job {
@@ -53,4 +77,5 @@ fragment ALL_FOR_JOB on Job {
   cancelled
   cancelledTime
   data
+  __typename
 }

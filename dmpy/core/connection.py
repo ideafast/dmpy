@@ -157,11 +157,11 @@ class DmpConnection:
                 else:
                     expiration = self._loginstate.access_token["expiration"]
                     if expiration < now():
-                        self._refresh_token()
+                        self.refresh_token()
             return func(self, *args, **kwargs)
         return wrap
 
-    def _refresh_token(self):
+    def refresh_token(self):
         """
         Request a new access token using the public key and signature if previous one is expired.
         Once got the new access token, update it into login state and set the expiration time.
@@ -170,22 +170,26 @@ class DmpConnection:
             raise Exception("public key and signature required")
         query = read_text_resource("issue_token.graphql")
         public_key_path = self._loginstate.access_token["public_key_path"]
+        signature_path = self._loginstate.access_token["signature_path"]
         with open(public_key_path, 'r') as public_key:
-            signature = self._loginstate.access_token["signature"]
-            variables = {"pubkey": public_key.read(), "signature": signature}
-            self._loginstate.set_auth_method(0)
-            response = self.graphql_request(query, variables)
-            if response.status != 200:
-                raise ValueError(f"Query was rejected by server (status {response.status})")
+            with open(signature_path, 'r') as signature:
+                variables = {"pubkey": public_key.read(), "signature": signature.read()}
+                self._loginstate.set_auth_method(0)
+                response = self.graphql_request(query, variables)
+                if response.status != 200:
+                    raise ValueError(f"Query was rejected by server (status {response.status})")
+                content: dict = json.loads(response.jsontext)
 
-            content: dict = json.loads(response.jsontext)
-            data = safe_dict_get(content, "data")
-            issued_token = safe_dict_get(data, "issueAccessToken")
-            token = safe_dict_get(issued_token, "accessToken")
-            if token is not None:
-                self._loginstate.refresh_token(token)
-            else:
-                print(content)
+                if "errors" not in content:
+                    data = safe_dict_get(content, "data")
+                    issued_token = safe_dict_get(data, "issueAccessToken")
+                    token = safe_dict_get(issued_token, "accessToken")
+                    if token is not None:
+                        self._loginstate.refresh_token(token)
+                    else:
+                        print(content)
+                else:
+                    raise Exception(content["errors"])
 
     def graphql_request(
         self, query: str, variables: any
@@ -254,7 +258,17 @@ class DmpConnection:
         directory = dest.parent
         if not directory.is_dir():
             directory.mkdir(parents=True)
-        headers = {"Cookie": "connect.sid=" + self._loginstate.cookie["cookie"]}
+        headers = {}
+
+        if self._loginstate.auth_method == 1:
+            if self._loginstate.cookie is None:
+                raise Exception("You are not logged in")
+            headers["Cookie"] = "connect.sid=" + self._loginstate.cookie["cookie"]
+        elif self._loginstate.auth_method == 2:
+            if self._loginstate.access_token is None:
+                raise Exception("no access token info setup")
+            headers["Authorization"] = self._loginstate.access_token["token"]
+
         self._conn.request("GET", f"/file/{file_id}", None, headers)
         res: http.client.HTTPResponse = self._conn.getresponse()
         if res.status != 200:
