@@ -177,7 +177,7 @@ def login(username: Optional[str]):
                     print("You have registered the following public key:")
                     for pub_key in pub_keys:
                         pub_key = pub_key["pubkey"]
-                        pub_key = pub_key.replace('\n','\\n')
+                        pub_key = pub_key.replace('\n', '\\n')
                         print(pub_key)
 
             else:
@@ -291,7 +291,6 @@ def _save_files_as_csv(csv_name: Union[str, Path], files: List[Dict[str, Any]]):
     """
     with FileTransaction.start(csv_name) as trx:
         with trx.tmp_name.open("w") as csv:
-
             def write_line(fields: List[Any]):
                 texts = [str(x) for x in fields]  # assumption: no quotes needed
                 line = ",".join(texts)
@@ -346,7 +345,7 @@ def study_info(study_id: str):
         get_study_info = response["data"]["getStudy"]
         print(f"Study id: {get_study_info['id']}")
         print(f"Study name: {get_study_info['name']}")
-        print(f"Study type: {get_study_info['type'] }")
+        print(f"Study type: {get_study_info['type']}")
         jobs = get_study_info["jobs"]
         projects = get_study_info["projects"]
         data_versions = get_study_info["dataVersions"]
@@ -461,11 +460,11 @@ def _norm_list(x: Optional[List[str]]) -> Optional[Union[str, List[str]]]:
 
 
 def _get_filtered_list(
-    study: Optional[str],
-    participants: Optional[List[str]],
-    kinds: Optional[List[str]],
-    devices: Optional[List[str]],
-    fids: Optional[List[str]],
+        study: Optional[str],
+        participants: Optional[List[str]],
+        kinds: Optional[List[str]],
+        devices: Optional[List[str]],
+        fids: Optional[List[str]],
 ) -> Optional[DataFrameGroupBy]:
     crd = Fore.LIGHTRED_EX
     cor = Fore.YELLOW
@@ -541,11 +540,11 @@ def _get_filtered_list(
 
 
 def file_list(
-    study: Optional[str],
-    fids: Optional[List[str]] = None,
-    participants: Optional[List[str]] = None,
-    kinds: Optional[List[str]] = None,
-    devices: Optional[List[str]] = None,
+        study: Optional[str],
+        fids: Optional[List[str]] = None,
+        participants: Optional[List[str]] = None,
+        kinds: Optional[List[str]] = None,
+        devices: Optional[List[str]] = None,
 ):
     """
     Implements "dmpapp list"
@@ -593,12 +592,12 @@ def file_list(
 
 
 def sync(
-    study: Optional[str],
-    participants: Optional[List[str]]=None,
-    kinds: Optional[List[str]]=None,
-    devices: Optional[List[str]]=None,
-    fids: Optional[List[str]]=None,
-    cap: int=0,
+        study: Optional[str],
+        participants: Optional[List[str]] = None,
+        kinds: Optional[List[str]] = None,
+        devices: Optional[List[str]] = None,
+        fids: Optional[List[str]] = None,
+        cap: int = 0,
 ):
     crd = Fore.LIGHTRED_EX
     cgn = Fore.LIGHTGREEN_EX
@@ -646,7 +645,7 @@ def sync(
         rejected_files: Dict[str, List[DmpFileInfo]] = {}
         sorted_by_path = sorted(selected_files.all(), key=lambda x: str(x.path_name()))
         for fpath, group in itertools.groupby(
-            sorted_by_path, key=lambda x: str(x.path_name())
+                sorted_by_path, key=lambda x: str(x.path_name())
         ):
             files = [dfi for dfi in group]
             if len(files) != 1:
@@ -940,7 +939,8 @@ def get_study_fields(study_id: str):
             return fields
 
 
-def create_new_field(study_id:str, field_id:str, field_name:str, data_type:str, possible_values:List=None, unit:str=None, comments:str=None):
+def create_new_field(study_id: str, field_id: str, field_name: str, data_type: str, possible_values: List = None,
+                     unit: str = None, comments: str = None):
     with DmpConnection("dmpapp") as dc:
         if study_id == "" or study_id is None:
             study_id = dc.login_state.default_study
@@ -1024,20 +1024,27 @@ def delete_data_record(study_id: str, subject_id: str):
         raise Exception(response["errors"])
 
 
-def get_data_records(study_id: str, query_string: str = None, version_ids: List[str] = None):
+def get_data_records(study_id: str, field_ids: List[str] = None, data_format: str = None):
     with DmpConnection("dmpapp") as dc:
         if study_id == "" or study_id is None:
             study_id = dc.login_state.default_study
 
     variables = {
-        "studyId": study_id
+        "studyId": study_id,
+        "queryString": {
+            "data_requested": None,
+            "format": "raw",
+            "new_fields": None,
+            "cohort": None,
+        },
+        "versionId": None
     }
 
-    if query_string:
-        variables["queryString"] = query_string
+    if field_ids:
+        variables["queryString"]["data_requested"] = field_ids
 
-    if version_ids:
-        variables["versionId"] = version_ids
+    if data_format:
+        variables["queryString"]["format"] = data_format
 
     response = dc.execute_graphql("get_data_records.graphql", variables)
     if "errors" not in response:

@@ -106,7 +106,7 @@ class DmpConnection:
         :param server: The server name or None to use the default ('data.ideafast.eu')
         """
         if server is None:
-            server = "data.ideafast.eu"
+            server = "staging.wp5.ideafast.eu"
         self._server = server
         self._conn = http.client.HTTPSConnection(self._server)
         self._loginstate = DmpLoginState(appname)
@@ -557,7 +557,7 @@ class DmpConnection:
     def get_study_fields(self, study_id: str, field_tree_id: str = None):
         query = read_text_resource("get_study_fields.graphql")
         variables = {
-            "studyId": study_id,
+            "studyId": study_id
         }
 
         if field_tree_id:
