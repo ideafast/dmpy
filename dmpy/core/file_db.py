@@ -68,6 +68,8 @@ class DmpFileInfo:
         """
         return Path(self.participant_id, self.device_id, self.file_name)
 
+    def change_path_name(self, index):
+        self.file_name = self.file_name+'.'+index
     pass
 
 

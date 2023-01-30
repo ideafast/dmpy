@@ -642,22 +642,30 @@ def sync(
 
         # Check for duplicate names
         accepted_files: List[DmpFileInfo] = []
-        rejected_files: Dict[str, List[DmpFileInfo]] = {}
+        # rejected_files: Dict[str, List[DmpFileInfo]] = {}
         sorted_by_path = sorted(selected_files.all(), key=lambda x: str(x.path_name()))
         for fpath, group in itertools.groupby(
                 sorted_by_path, key=lambda x: str(x.path_name())
         ):
             files = [dfi for dfi in group]
             if len(files) != 1:
-                rejected_files[fpath] = files
-                print(
-                    f"{crd}Skipping ambiguous files!{c0} "
-                    + f'There are {cgn}{len(files)}{c0} distinct files named "{cyw}{fpath}{c0}"'
-                )
+                i = 0
+                for file in files:
+                    file.change_path_name(str(i))
+                    i += 1
+                    accepted_files.append(file)
+                # rejected_files[fpath] = files
+                # print(
+                #     f"{crd}Skipping ambiguous files!{c0} "
+                #     + f'There are {cgn}{len(files)}{c0} distinct files named "{cyw}{fpath}{c0}"'
+                # )
             else:
                 accepted_files.append(files[0])
 
+        print(len(accepted_files))
         outdated_files = [dfi for dfi in accepted_files if not db.is_up_to_date(dfi)]
+
+        print(len(outdated_files))
         # smallest files first
         outdated_files.sort(key=lambda dfi: dfi.file_size)
 
@@ -705,12 +713,12 @@ def sync(
                 else:
                     print(f" {crd}{status} - FAIL{c0}")
 
-        if len(rejected_files) > 0:
-            print(f"{cbl}Some files were skipped because their name is ambiguous{c0}:")
-            for fpath, files in rejected_files.items():
-                print(
-                    f"  Skipped {crd}{len(files)}{c0} distinct files named {cor}{fpath}{c0}"
-                )
+        # if len(rejected_files) > 0:
+        #     print(f"{cbl}Some files were skipped because their name is ambiguous{c0}:")
+        #     for fpath, files in rejected_files.items():
+        #         print(
+        #             f"  Skipped {crd}{len(files)}{c0} distinct files named {cor}{fpath}{c0}"
+        #         )
 
         if remaining > 0:
             print(
