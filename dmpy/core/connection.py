@@ -8,6 +8,7 @@ from http.cookies import Morsel, SimpleCookie
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 from time import time as now
+import os
 
 from .payloads import FileUploadPayload
 from .login_state import DmpLoginState
@@ -106,7 +107,13 @@ class DmpConnection:
         :param server: The server name or None to use the default ('data.ideafast.eu')
         """
         if server is None:
-            server = "staging.wp5.ideafast.eu"
+            dmp_endpoint = os.getenv('DMP_ENDPOINT')
+            if dmp_endpoint == 'production':
+                server = "data.ideafast.eu"
+            elif dmp_endpoint == 'staging':
+                server = "staging.wp5.ideafast.eu"
+            else:
+                server = "staging.wp5.ideafast.eu"
         self._server = server
         self._conn = http.client.HTTPSConnection(self._server)
         self._loginstate = DmpLoginState(appname)
