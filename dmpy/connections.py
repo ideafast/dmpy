@@ -43,7 +43,7 @@ class DMPConnection:
 
     def upload_file(self, file_name: str, file_content: bytes, variables: any):
         query = load_query("upload")
-        files = {'file': (file_name, file_content)}
+        
         operations: Dict[str, Dict] = {
             'query': query,
             'variables': variables,
