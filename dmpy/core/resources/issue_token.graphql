@@ -1,5 +1,0 @@
-mutation issueAccessToken($pubkey: String!, $signature: String!) {
-    issueAccessToken(pubkey: $pubkey, signature: $signature) {
-        accessToken
-    }
-}

@@ -1,0 +1,4 @@
+requests
+colorama
+rarfile
+py7zr

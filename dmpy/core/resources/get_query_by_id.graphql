@@ -1,6 +1,0 @@
-query getQueryById($queryId: String!) {
-  getQueryById(queryId: $queryId) {
-    status
-    queryResult
-  }
-}

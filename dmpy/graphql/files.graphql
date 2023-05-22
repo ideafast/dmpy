@@ -1,4 +1,3 @@
-
 query getStudy($studyId: String!) {
         getStudy(studyId: $studyId) {
             id
@@ -13,6 +12,8 @@ query getStudy($studyId: String!) {
                 description
                 uploadTime
                 uploadedBy
+                hash
+                __typename
             }
         }
     }

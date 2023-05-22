@@ -1,9 +1,0 @@
-mutation registerPubkey($pubkey: String!, $signature: String!, $associatedUserId: String) {
-    registerPubkey(pubkey: $pubkey, signature: $signature, associatedUserId: $associatedUserId) {
-        id
-        pubkey
-        jwtPubkey
-        jwtSeckey
-        associatedUserId
-    }
-}
