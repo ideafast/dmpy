@@ -1,5 +1,4 @@
 fragment ALL_FOR_FIELD on Field {
-        id
         studyId
         fieldId
         fieldName
@@ -13,7 +12,6 @@ fragment ALL_FOR_FIELD on Field {
         unit
         comments
         dateAdded
-        dateDeleted
     }
 
 query getStudyFields($studyId: String!, $projectId: String, $versionId: String) {
