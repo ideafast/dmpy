@@ -1,5 +1,5 @@
 from typing import Dict
-from dmpy.utils import load_query, load_cookie_from_file
+from dmpy.utils import load_query, load_cookie_from_file, load_host_from_file
 import requests
 import os
 import json
@@ -10,7 +10,11 @@ class DMPConnection:
         if os.environ.get('DMP_URL'):
             host = os.environ.get('DMP_URL')
         else:
-            host = 'https://data.ideafast.eu'
+            host = load_host_from_file()
+            if host is None:
+                host = 'https://data.ideafast.eu'
+            else:
+                host = f'https://{host}'
 
         if os.environ.get('DMP_COOKIE'):
             cookie = os.environ.get('DMP_COOKIE')

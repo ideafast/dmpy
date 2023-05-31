@@ -20,6 +20,15 @@ def load_cookie_from_file() -> Optional[str]:
             return f.read().strip('\n\r')
     except:
         return None
+    
+
+def load_host_from_file() -> Optional[str]:
+    username = getpass.getuser()
+    try:
+        with open(f'/tmp/{username}/cookie/host', 'r') as f:
+            return f.read().strip('\n\r')
+    except:
+        return None
 
 
 def get_file_type(fname: str) -> str:

@@ -43,6 +43,7 @@ def state():
                 f"{Fore.LIGHTCYAN_EX}{study['id']}{Fore.RESET} = "
                 f"{Fore.YELLOW}{study['name']}{Fore.RESET}"
             )
+    return studies
 
 
 def list_files(
@@ -206,6 +207,9 @@ def upload_data(study_id: str, file_name: str, file_content: bytes, participant_
     }
     try:
         response = conn.upload_file(file_name, file_content, variables)
+        if response["error"]:
+            print(f"{Fore.LIGHTRED_EX}Error uploading file {file_name}: {response['error']}{Fore.RESET}")
+            return
         print(f"{Fore.LIGHTGREEN_EX}File {file_name} uploaded successfully{Fore.RESET}")
 
         file_id = response['data']['uploadFile']['id']
@@ -245,6 +249,8 @@ def create_new_field(study_id: str, field_id: str, field_name: str, data_type: s
     }
     conn = DMPConnection()
     response = conn.graphql_request('create_field', variables)
+    if response['errors']:
+        raise Exception(response['errors'])
     return response['data']['createNewField']
 
 
@@ -276,7 +282,10 @@ def upload_data_in_array(study_id: str, data: List[dict]):
         'data': data
     }
     try:
-        conn.graphql_request('upload_data_in_array', variables)
-        print(f"{Fore.LIGHTGREEN_EX}Data uploaded successfully{Fore.RESET}")
+        response = conn.graphql_request('upload_data_in_array', variables)
+        if "error" in response:
+            print(f"{Fore.LIGHTRED_EX}Error uploading data: {response['error']}{Fore.RESET}")
+        else:
+            print(f"{Fore.LIGHTGREEN_EX}Data uploaded successfully{Fore.RESET}")
     except Exception as e:
         print(f"{Fore.LIGHTRED_EX}Error uploading data: {e}{Fore.RESET}")
