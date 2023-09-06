@@ -207,7 +207,7 @@ def upload_data(study_id: str, file_name: str, file_content: bytes, participant_
     }
     try:
         response = conn.upload_file(file_name, file_content, variables)
-        if response["error"]:
+        if "error" in response:
             print(f"{Fore.LIGHTRED_EX}Error uploading file {file_name}: {response['error']}{Fore.RESET}")
             return
         print(f"{Fore.LIGHTGREEN_EX}File {file_name} uploaded successfully{Fore.RESET}")
@@ -249,12 +249,16 @@ def create_new_field(study_id: str, field_id: str, field_name: str, data_type: s
     }
     conn = DMPConnection()
     response = conn.graphql_request('create_field', variables)
-    if response['errors']:
+    if 'errors' in response:
         raise Exception(response['errors'])
     return response['data']['createNewField']
 
 
-def get_data_records(study_id: str, field_ids: List[str] = None, data_format: str = None, version_id: str = '0'):
+def get_data_records(study_id: str, 
+                     field_ids: List[str] = None, 
+                     data_format: str = None, 
+                     version_id: str = '0',
+                     table_requested: str = None):
     conn = DMPConnection()
     variables = {
         "studyId": study_id,
@@ -270,6 +274,10 @@ def get_data_records(study_id: str, field_ids: List[str] = None, data_format: st
         variables["queryString"]["format"] = data_format
     if not version_id:
         variables["versionId"] = None
+    if version_id == '-1':
+        variables["versionId"] = version_id
+    if table_requested:
+        variables["queryString"]["table_requested"] = table_requested
 
     data_records = conn.graphql_request('data_records', variables)
     return data_records['data']['getDataRecords']["data"]
