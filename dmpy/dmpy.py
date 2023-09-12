@@ -229,7 +229,7 @@ def get_study_fields(study_id: str):
 
 
 def create_new_field(study_id: str, field_id: str, field_name: str, data_type: str, possible_values: List = None,
-                     unit: str = None, comments: str = None):
+                     unit: str = None, comments: str = None, table_name: str = None):
     if data_type == "cat" and possible_values is None:
         raise Exception("possible values needed when data_type is 'cat'")
     field_input = {
@@ -243,6 +243,8 @@ def create_new_field(study_id: str, field_id: str, field_name: str, data_type: s
         field_input["unit"] = unit
     if comments:
         field_input["comments"] = comments
+    if table_name:
+        field_input["tableName"] = table_name
     variables = {
         "studyId": study_id,
         "fieldInput": field_input
