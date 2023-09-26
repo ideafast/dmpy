@@ -111,8 +111,10 @@ def list_files(
     return files2
 
 
-def get_file_content(file_id: str, stream: bool = True):
+def get_file_content(file_id: str, stream: bool = True, decode: str = None):
     conn = DMPConnection()
+    if decode:
+        return conn.get_file(file_id, stream=stream).decode(decode)
     return conn.get_file(file_id, stream=stream)
 
 
@@ -122,29 +124,34 @@ def archive_preview(file_id: str, file_name: str):
     compressed_data = BytesIO(file_stream)
     if not file_type or file_type not in ["zip", "tar.gz", "rar", "7z"]:
         print("Not an archive")
-        return
+        return "Not an archive"
     else:
         if file_type == 'zip':
             with zipfile.ZipFile(compressed_data) as zf:
                 print("ZIP file structure:")
                 for file_info in zf.infolist():
                     print(file_info.filename)
+                return [file_info.filename for file_info in zf.infolist()]
         elif file_type == 'tar.gz':
             with tarfile.open(fileobj=compressed_data, mode='r:gz') as tar:
                 print("Tarred GZ file structure:")
                 for tar_info in tar:
                     print(tar_info.name)
+                return [tar_info.filename for tar_info in tar]
         elif file_type == 'rar':
             with rarfile.RarFile(compressed_data) as rf:
                 print("RAR file structure:")
                 for rar_info in rf.infolist():
                     print(rar_info.filename)
+                    return [rar_info.filename for rar_info in rf.infolist()]
         elif file_type == '7z':
             with py7zr.SevenZipFile(compressed_data, mode='r') as z:
                 print("7Z file structure:")
                 for name in z.getnames():
                     print(name)
+                    return [name for name in z.getnames()]
 
+    
 
 def stream_text_from_archive(file_id, file_name):
     file_type = get_file_type(file_name)
@@ -189,6 +196,60 @@ def stream_text_from_archive(file_id, file_name):
                         yield data
                     except UnicodeDecodeError:
                         print(f'Could not decode file {file_info.filename} in UTF-8')
+
+def stream_text_from_specific_archive_file(file_id, file_name, sub_file_name: str = None):
+    file_type = get_file_type(file_name)
+    file_stream = get_file_content(file_id)
+    compressed_data = BytesIO(file_stream)
+    if file_type == 'zip':
+        with zipfile.ZipFile(compressed_data) as zf:
+            for file_info in zf.infolist():
+                if file_info.filename != sub_file_name:
+                    continue
+                if file_info.filename.endswith('/'):
+                    continue
+                with zf.open(file_info, 'r') as file:
+                    try:
+                        data = StringIO(file.read().decode('utf-8')).getvalue()
+                        return file_info.filename, data
+                    except UnicodeDecodeError:
+                        return (f'Could not decode file {file_info.filename} in UTF-8')
+    elif file_type == 'tar.gz':
+        with tarfile.open(fileobj=compressed_data, mode='r:gz') as tar:
+            for tar_info in tar:
+                if tar_info.name != sub_file_name:
+                    continue
+                if tar_info.isfile():
+                    file = tar.extractfile(tar_info)
+                    try:
+                        data = StringIO(file.read().decode('utf-8')).getvalue()
+                        return tar_info.name, data
+                    except UnicodeDecodeError:
+                        return (f'Could not decode file {tar_info.name} in UTF-8')
+    elif file_type == '7z':
+        with py7zr.SevenZipFile(compressed_data, mode='r') as z:
+            for file_info in z.getnames():
+                if file_info.filename != sub_file_name:
+                    continue    
+                try:
+                    with z.read(file_info) as file:
+                        data = StringIO(file.read().decode('utf-8')).getvalue()
+                        return file_info, z.data
+                except UnicodeDecodeError:
+                    return (f'Could not decode file {file_info.filename} in UTF-8')
+    elif file_type == 'rar':
+        with rarfile.RarFile(compressed_data) as rf:
+            for file_info in rf.infolist():
+                if file_info.filename != sub_file_name:
+                    continue
+                with rf.open(file_info, 'r') as file:
+                    try:
+                        data = StringIO(file.read().decode('utf-8')).getvalue()
+                        return file_info.filename, data
+                    except UnicodeDecodeError:
+                        print(f'Could not decode file {file_info.filename} in UTF-8')
+
+    return sub_file_name
 
 
 def upload_data(study_id: str, file_name: str, file_content: bytes, participant_id: str, device_id: str,
