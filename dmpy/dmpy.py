@@ -280,11 +280,13 @@ def upload_data(study_id: str, file_name: str, file_content: bytes, participant_
         print(f"{Fore.LIGHTRED_EX}Error uploading file {file_name}: {e}{Fore.RESET}")
 
 
-def get_study_fields(study_id: str):
+def get_study_fields(study_id: str, versionId=''):
     conn = DMPConnection()
     variables = {
         "studyId": study_id,
     }
+    if versionId == None:
+        variables['versionId'] = None
     study_fields = conn.graphql_request('study_fields', variables)
     return study_fields['data']['getStudyFields']
 
