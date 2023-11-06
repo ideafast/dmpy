@@ -1,6 +1,8 @@
 mutation uploadDataInArray($studyId: String!, $data: [DataClip]) {
         uploadDataInArray(studyId: $studyId, data: $data) {
+            id
             code
             description
+            successful
         }
     }

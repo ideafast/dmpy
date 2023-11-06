@@ -181,6 +181,8 @@ def stream_text_from_archive(file_id, file_name):
     elif file_type == '7z':
         with py7zr.SevenZipFile(compressed_data, mode='r') as z:
             for file_info in z.getnames():
+                if file_info.filename.endswith('/'):
+                    continue
                 try:
                     with z.read(file_info) as file:
                         data = StringIO(file.read().decode('utf-8'))
@@ -190,10 +192,12 @@ def stream_text_from_archive(file_id, file_name):
     elif file_type == 'rar':
         with rarfile.RarFile(compressed_data) as rf:
             for file_info in rf.infolist():
+                if file_info.filename.endswith('/'):
+                    continue
                 with rf.open(file_info, 'r') as file:
                     try:
                         data = StringIO(file.read().decode('utf-8'))
-                        yield data
+                        yield file_info.filename, data
                     except UnicodeDecodeError:
                         print(f'Could not decode file {file_info.filename} in UTF-8')
 
@@ -356,9 +360,20 @@ def upload_data_in_array(study_id: str, data: List[dict]):
     }
     try:
         response = conn.graphql_request('upload_data_in_array', variables)
-        if "error" in response:
-            print(f"{Fore.LIGHTRED_EX}Error uploading data: {response['error']}{Fore.RESET}")
-        else:
-            print(f"{Fore.LIGHTGREEN_EX}Data uploaded successfully{Fore.RESET}")
+        # if "error" in response:
+        #     print(f"{Fore.LIGHTRED_EX}Error uploading data: {response['error']}{Fore.RESET}")
+        # else:
+        #     print(f"{Fore.LIGHTGREEN_EX}Data uploaded successfully{Fore.RESET}")
+        return response
     except Exception as e:
         print(f"{Fore.LIGHTRED_EX}Error uploading data: {e}{Fore.RESET}")
+
+def delete_study_field(study_id: str, field_id: str):
+    conn = DMPConnection()
+    variables = {
+        "studyId": study_id,
+        "fieldId": field_id
+    }
+    response = conn.graphql_request('deleteField', variables)
+    print(response)
+    return response['data']['deleteField']
