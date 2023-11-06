@@ -151,9 +151,12 @@ def archive_preview(file_id: str, file_name: str):
                     print(name)
                     return [name for name in z.getnames()]
 
-    
 
 def stream_text_from_archive(file_id, file_name):
+    return stream_data_from_archive(data_type='text')
+
+
+def stream_data_from_archive(file_id, file_name, data_type='text'):
     file_type = get_file_type(file_name)
     file_stream = get_file_content(file_id)
     compressed_data = BytesIO(file_stream)
@@ -164,7 +167,10 @@ def stream_text_from_archive(file_id, file_name):
                     continue
                 with zf.open(file_info, 'r') as file:
                     try:
-                        data = StringIO(file.read().decode('utf-8'))
+                        if data_type == 'binary':
+                            data  = data = file.read()  # Read file as binary data
+                        elif data_type == 'text':
+                            data = StringIO(file.read().decode('utf-8'))
                         yield file_info.filename, data
                     except UnicodeDecodeError:
                         print(f'Could not decode file {file_info.filename} in UTF-8')
@@ -174,7 +180,10 @@ def stream_text_from_archive(file_id, file_name):
                 if tar_info.isfile():
                     file = tar.extractfile(tar_info)
                     try:
-                        data = StringIO(file.read().decode('utf-8'))
+                        if data_type == 'binary':
+                            data  = data = file.read()  # Read file as binary data
+                        elif data_type == 'text':
+                            data = StringIO(file.read().decode('utf-8'))
                         yield tar_info.name, data
                     except UnicodeDecodeError:
                         print(f'Could not decode file {tar_info.name} in UTF-8')
@@ -185,7 +194,10 @@ def stream_text_from_archive(file_id, file_name):
                     continue
                 try:
                     with z.read(file_info) as file:
-                        data = StringIO(file.read().decode('utf-8'))
+                        if data_type == 'binary':
+                            data  = data = file.read()  # Read file as binary data
+                        elif data_type == 'text':
+                            data = StringIO(file.read().decode('utf-8'))
                         yield file_info, z.data
                 except UnicodeDecodeError:
                     print(f'Could not decode file {file_info} in UTF-8')
@@ -196,7 +208,10 @@ def stream_text_from_archive(file_id, file_name):
                     continue
                 with rf.open(file_info, 'r') as file:
                     try:
-                        data = StringIO(file.read().decode('utf-8'))
+                        if data_type == 'binary':
+                            data = file.read()  # Read file as binary data
+                        elif data_type == 'text':
+                            data = StringIO(file.read().decode('utf-8'))
                         yield file_info.filename, data
                     except UnicodeDecodeError:
                         print(f'Could not decode file {file_info.filename} in UTF-8')
@@ -368,6 +383,7 @@ def upload_data_in_array(study_id: str, data: List[dict]):
     except Exception as e:
         print(f"{Fore.LIGHTRED_EX}Error uploading data: {e}{Fore.RESET}")
 
+
 def delete_study_field(study_id: str, field_id: str):
     conn = DMPConnection()
     variables = {
@@ -377,38 +393,3 @@ def delete_study_field(study_id: str, field_id: str):
     response = conn.graphql_request('deleteField', variables)
     print(response)
     return response['data']['deleteField']
-
-
-# read file from binary
-def stream_binary_from_archive(file_id, file_name):
-    file_type = get_file_type(file_name)
-    file_stream = get_file_content(file_id)
-    compressed_data = BytesIO(file_stream)
-    
-    if file_type == 'zip':
-        with zipfile.ZipFile(compressed_data) as zf:
-            for file_info in zf.infolist():
-                if file_info.filename.endswith('/'):
-                    continue
-                with zf.open(file_info, 'r') as file:
-                    data = file.read()  # Read file as binary data
-                    yield file_info.filename, data
-    elif file_type == 'tar.gz':
-        with tarfile.open(fileobj=compressed_data, mode='r:gz') as tar:
-            for tar_info in tar:
-                if tar_info.isfile():
-                    file = tar.extractfile(tar_info)
-                    data = file.read()  # Read file as binary data
-                    yield tar_info.name, data
-    elif file_type == '7z':
-        with py7zr.SevenZipFile(compressed_data, mode='r') as z:
-            for file_info in z.getnames():
-                with z.read(file_info) as file:
-                    data = file.read()  # Read file as binary data
-                    yield file_info, data
-    elif file_type == 'rar':
-        with rarfile.RarFile(compressed_data) as rf:
-            for file_info in rf.infolist():
-                with rf.open(file_info, 'r') as file:
-                    data = file.read()  # Read file as binary data
-                    yield file_info.filename, data
