@@ -377,3 +377,38 @@ def delete_study_field(study_id: str, field_id: str):
     response = conn.graphql_request('deleteField', variables)
     print(response)
     return response['data']['deleteField']
+
+
+# read file from binary
+def stream_binary_from_archive(file_id, file_name):
+    file_type = get_file_type(file_name)
+    file_stream = get_file_content(file_id)
+    compressed_data = BytesIO(file_stream)
+    
+    if file_type == 'zip':
+        with zipfile.ZipFile(compressed_data) as zf:
+            for file_info in zf.infolist():
+                if file_info.filename.endswith('/'):
+                    continue
+                with zf.open(file_info, 'r') as file:
+                    data = file.read()  # Read file as binary data
+                    yield file_info.filename, data
+    elif file_type == 'tar.gz':
+        with tarfile.open(fileobj=compressed_data, mode='r:gz') as tar:
+            for tar_info in tar:
+                if tar_info.isfile():
+                    file = tar.extractfile(tar_info)
+                    data = file.read()  # Read file as binary data
+                    yield tar_info.name, data
+    elif file_type == '7z':
+        with py7zr.SevenZipFile(compressed_data, mode='r') as z:
+            for file_info in z.getnames():
+                with z.read(file_info) as file:
+                    data = file.read()  # Read file as binary data
+                    yield file_info, data
+    elif file_type == 'rar':
+        with rarfile.RarFile(compressed_data) as rf:
+            for file_info in rf.infolist():
+                with rf.open(file_info, 'r') as file:
+                    data = file.read()  # Read file as binary data
+                    yield file_info.filename, data
