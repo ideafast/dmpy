@@ -173,7 +173,13 @@ def stream_data_from_archive(file_id, file_name, data_type='text'):
                             data = StringIO(file.read().decode('utf-8'))
                         yield file_info.filename, data
                     except UnicodeDecodeError:
-                        print(f'Could not decode file {file_info.filename} in UTF-8')
+                        try:
+                            file.seek(0)  # Reset file pointer
+                            data = StringIO(file.read().decode('ISO-8859-1'))
+                            yield file_info.filename, data
+                        except Exception as e:
+                            print(f"Failed to decode file {file_info.filename} in UTF-8 or ISO-8859-1: {e}")
+
     elif file_type == 'tar.gz':
         with tarfile.open(fileobj=compressed_data, mode='r:gz') as tar:
             for tar_info in tar:
@@ -186,7 +192,12 @@ def stream_data_from_archive(file_id, file_name, data_type='text'):
                             data = StringIO(file.read().decode('utf-8'))
                         yield tar_info.name, data
                     except UnicodeDecodeError:
-                        print(f'Could not decode file {tar_info.name} in UTF-8')
+                        try:
+                            file.seek(0)  # Reset file pointer
+                            data = StringIO(file.read().decode('ISO-8859-1'))
+                            yield file_info.filename, data
+                        except Exception as e:
+                            print(f"Failed to decode file {file_info.filename} in UTF-8 or ISO-8859-1: {e}")
     elif file_type == '7z':
         with py7zr.SevenZipFile(compressed_data, mode='r') as z:
             for file_info in z.getnames():
@@ -200,7 +211,12 @@ def stream_data_from_archive(file_id, file_name, data_type='text'):
                             data = StringIO(file.read().decode('utf-8'))
                         yield file_info, z.data
                 except UnicodeDecodeError:
-                    print(f'Could not decode file {file_info} in UTF-8')
+                        try:
+                            file.seek(0)  # Reset file pointer
+                            data = StringIO(file.read().decode('ISO-8859-1'))
+                            yield file_info.filename, data
+                        except Exception as e:
+                            print(f"Failed to decode file {file_info.filename} in UTF-8 or ISO-8859-1: {e}")
     elif file_type == 'rar':
         with rarfile.RarFile(compressed_data) as rf:
             for file_info in rf.infolist():
@@ -214,7 +230,12 @@ def stream_data_from_archive(file_id, file_name, data_type='text'):
                             data = StringIO(file.read().decode('utf-8'))
                         yield file_info.filename, data
                     except UnicodeDecodeError:
-                        print(f'Could not decode file {file_info.filename} in UTF-8')
+                        try:
+                            file.seek(0)  # Reset file pointer
+                            data = StringIO(file.read().decode('ISO-8859-1'))
+                            yield file_info.filename, data
+                        except Exception as e:
+                            print(f"Failed to decode file {file_info.filename} in UTF-8 or ISO-8859-1: {e}")
 
 def stream_text_from_specific_archive_file(file_id, file_name, sub_file_name: str = None):
     file_type = get_file_type(file_name)
@@ -232,7 +253,12 @@ def stream_text_from_specific_archive_file(file_id, file_name, sub_file_name: st
                         data = StringIO(file.read().decode('utf-8')).getvalue()
                         return file_info.filename, data
                     except UnicodeDecodeError:
-                        return (f'Could not decode file {file_info.filename} in UTF-8')
+                        try:
+                            file.seek(0)
+                            data = StringIO(file.read().decode('ISO-8859-1'))
+                            yield file_info.filename, data
+                        except Exception as e:
+                            return (f'Could not decode file {file_info.filename} in UTF-8 or ISO-8859-1')
     elif file_type == 'tar.gz':
         with tarfile.open(fileobj=compressed_data, mode='r:gz') as tar:
             for tar_info in tar:
@@ -244,7 +270,12 @@ def stream_text_from_specific_archive_file(file_id, file_name, sub_file_name: st
                         data = StringIO(file.read().decode('utf-8')).getvalue()
                         return tar_info.name, data
                     except UnicodeDecodeError:
-                        return (f'Could not decode file {tar_info.name} in UTF-8')
+                        try:
+                            file.seek(0)
+                            data = StringIO(file.read().decode('ISO-8859-1'))
+                            yield file_info.filename, data
+                        except Exception as e:
+                            return (f'Could not decode file {file_info.filename} in UTF-8 or ISO-8859-1')
     elif file_type == '7z':
         with py7zr.SevenZipFile(compressed_data, mode='r') as z:
             for file_info in z.getnames():
@@ -255,7 +286,12 @@ def stream_text_from_specific_archive_file(file_id, file_name, sub_file_name: st
                         data = StringIO(file.read().decode('utf-8')).getvalue()
                         return file_info, z.data
                 except UnicodeDecodeError:
-                    return (f'Could not decode file {file_info.filename} in UTF-8')
+                        try:
+                            file.seek(0)
+                            data = StringIO(file.read().decode('ISO-8859-1'))
+                            yield file_info.filename, data
+                        except Exception as e:
+                            return (f'Could not decode file {file_info.filename} in UTF-8 or ISO-8859-1')
     elif file_type == 'rar':
         with rarfile.RarFile(compressed_data) as rf:
             for file_info in rf.infolist():
@@ -266,7 +302,12 @@ def stream_text_from_specific_archive_file(file_id, file_name, sub_file_name: st
                         data = StringIO(file.read().decode('utf-8')).getvalue()
                         return file_info.filename, data
                     except UnicodeDecodeError:
-                        print(f'Could not decode file {file_info.filename} in UTF-8')
+                        try:
+                            file.seek(0)
+                            data = StringIO(file.read().decode('ISO-8859-1'))
+                            yield file_info.filename, data
+                        except Exception as e:
+                            return (f'Could not decode file {file_info.filename} in UTF-8 or ISO-8859-1')
 
     return sub_file_name
 
