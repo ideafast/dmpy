@@ -153,7 +153,7 @@ def archive_preview(file_id: str, file_name: str):
 
 
 def stream_text_from_archive(file_id, file_name):
-    return stream_data_from_archive(data_type='text')
+    return stream_data_from_archive(file_id, file_name, data_type='text')
 
 
 def stream_data_from_archive(file_id, file_name, data_type='text'):
