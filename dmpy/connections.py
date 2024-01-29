@@ -66,7 +66,7 @@ class DMPConnection:
             'fileName': (file_name, file_content, 'application/octet-stream'),
         }
 
-        response: requests.Response = requests.post(self._host_graphql, data=data, files=files)
+        response: requests.Response = requests.post(self._host_graphql, data=data, files=files, cookies=self._cookies)
 
         response.raise_for_status()  # Ensure we got a successful response
 
