@@ -280,8 +280,8 @@ def upload_data(study_id: str, file_name: str, file_content: bytes, participant_
             {
                 "participantId": participant_id,
                 "deviceId": device_id,
-                "startDate": start_date,
-                "endDate": end_date,
+                "startDate": start_date * 1000,
+                "endDate": end_date * 1000,
             }
         )
     }
