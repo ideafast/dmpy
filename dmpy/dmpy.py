@@ -323,9 +323,10 @@ def upload_data(study_id: str, file_name: str, file_content: bytes, participant_
         'description': json.dumps({
                 "participantId": participant_id,
                 "deviceId": device_id,
-                "startDate": start_date,
-                "endDate": end_date
-            })
+                "startDate": start_date * 1000,
+                "endDate": end_date * 1000,
+            }
+        )
     }
     try:
         response = conn.upload_file(file_name, file_content, variables)
