@@ -16,13 +16,17 @@ class DMPConnection:
             else:
                 host = f'https://{host}'
 
+        token = os.environ.get('DMP_TOKEN')
         if os.environ.get('DMP_COOKIE'):
             cookie = os.environ.get('DMP_COOKIE')
         else:
             cookie = load_cookie_from_file()
         self._host = host
         self._host_graphql = f'{host}/graphql'
-        self._cookies = {"connect.sid": cookie}
+        self._token = token if token else None
+        self._cookies = {"connect.sid": cookie} if cookie else None
+        if not self._cookies and not self._token:
+            raise Exception('No token or cookie provided, please set DMP_TOKEN or DMP_COOKIE environment variable')
 
     def graphql_request(self, name: str, variables: any):
         headers = {
@@ -32,6 +36,8 @@ class DMPConnection:
         payload = {'query': query}
         if variables:
             payload['variables'] = variables
+        if self._token:
+            headers['Authorization'] = f'{self._token}'
         response = requests.post(self._host_graphql, json={'query': query, 'variables': variables}, headers=headers,
                                  cookies=self._cookies)
         if response.status_code != 200:
