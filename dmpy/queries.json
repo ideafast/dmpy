@@ -1,0 +1,160 @@
+[
+    {
+        "endpoint": "user.whoAmI",
+        "parameters": {},
+        "method": "GET"
+    },
+    {
+        "endpoint": "study.getStudies",
+        "parameters": {
+            "studyId": {
+                "required": false
+            }
+        },
+        "method": "GET"
+    },
+    {
+        "endpoint": "data.getStudyData",
+        "parameters": {
+            "studyId": {
+                "required": true
+            },
+            "versionId": {
+                "required": false
+            },
+            "fieldIds": {
+                "required": true
+            },
+            "useCache": {
+                "required": false
+            }
+        },
+        "method": "GET"
+    },
+    {
+        "endpoint": "data.getStudyDataLatest",
+        "parameters": {
+            "studyId": {
+                "required": true
+            },
+            "fieldIds": {
+                "required": true
+            }
+        },
+        "method": "GET"
+    },
+    {
+        "endpoint": "data.getFiles",
+        "parameters": {
+            "studyId": {
+                "required": true
+            }
+        },
+        "method": "GET"
+    },
+    {
+        "endpoint": "data.getStudyFields",
+        "parameters": {
+            "studyId": {
+                "required": true
+            },
+            "versonId": {
+                "required": false
+            }
+        },
+        "method": "GET"
+    },
+    {
+        "endpoint": "data.createStudyField",
+        "parameters": {
+            "studyId": {
+                "required": true
+            },
+            "fieldName": {
+                "required": true
+            },
+            "fieldId": {
+                "required": true
+            },
+            "description": {
+                "required": false
+            },
+            "dataType": {
+                "required": true
+            },
+            "categoryOptions": {
+                "required": false
+            },
+            "unit": {
+                "required": false
+            },
+            "comments": {
+                "required": false
+            },
+            "verifier": {
+                "required": false
+            },
+            "properties": {
+                "required": false
+            }
+        },
+        "method": "POST"
+    },
+    {
+        "endpoint": "data.createStudyField",
+        "parameters": {
+            "studyId": {
+                "required": true
+            },
+            "fieldId": {
+                "required": true
+            }
+        },
+        "method": "POST"
+    },
+    {
+        "endpoint": "data.deleteStudyData",
+        "parameters": {
+            "studyId": {
+                "required": true
+            },
+            "fieldId": {
+                "required": true
+            },
+            "properties": {
+                "required": true
+            }
+        },
+        "method": "POST"
+    },
+    {
+        "endpoint": "data.uploadStudyData",
+        "parameters": {
+            "studyId": {
+                "required": true
+            },
+            "data": {
+                "required": true
+            }
+        },
+        "method": "POST"
+    },
+    {
+        "endpoint": "data.uploadStudyFileData",
+        "parameters": {
+            "studyId": {
+                "required": true
+            },
+            "file": {
+                "required": true
+            },
+            "properties": {
+                "required": false
+            },
+            "fieldId": {
+                "required": true
+            }
+        },
+        "method": "POST"
+    }
+]

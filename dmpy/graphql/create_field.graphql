@@ -1,6 +1,0 @@
-mutation createNewField($studyId: String!, $fieldInput: [FieldInput]!) {
-    createNewField(studyId: $studyId, fieldInput: $fieldInput) {
-        code
-        description
-    }
-}
