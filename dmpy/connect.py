@@ -9,7 +9,7 @@ import os
 import urllib.parse
 import requests
 from dmpy.utils import *
-from dmpy.utils import load_cookie_from_file, load_host_from_file
+from dmpy.utils import load_host_from_file
 import time
 from concurrent.futures import ThreadPoolExecutor
 import threading
@@ -19,23 +19,20 @@ class DMPConnectiontRPC:
         This class implements the basic Python API wrapper of the DMP API.
     """
     def __init__(self, token=None):
+        token = os.environ.get('DMP_TOKEN')
+
         if os.environ.get('DMP_URL'):
             host = os.environ.get('DMP_URL')
         else:
             host = load_host_from_file()
             if host is None:
-                host = 'https://data.ideafast.eu'
+                host = 'http://localhost:3080'
             else:
                 host = f'https://{host}'
         self.host = host + '/trpc'
-        # self.token = token
-        # self.validate_token()
-        if os.environ.get('DMP_COOKIE'):
-            cookie = os.environ.get('DMP_COOKIE')
-        else:
-            cookie = load_cookie_from_file()
-        self._cookies = {"connect.sid": cookie}
-        # self.get_studies()
+        self.token = token
+        token = token.replace('\n', '')
+        self.validate_token()
 
     def send_query(self, query_name, parameters):
         """
@@ -44,12 +41,17 @@ class DMPConnectiontRPC:
         parent = os.path.dirname(os.path.abspath(__file__))
         queries = read_json(os.path.join(parent, 'queries.json'))
         found_item = next((item for item in queries if item["endpoint"] == query_name), None)
+        time.sleep(1)
         if not found_item:
             return 'Query not recognized.'
         try:
             if found_item['method'] == 'GET':
-                response = requests.request(found_item['method'], self.host + '/' + query_name + '?input=' + urllib.parse.quote(json.dumps(parameters)), 
-                cookies=self._cookies, data=parameters, timeout=300).json()
+                response = requests.request(
+                    found_item['method'], 
+                    self.host + '/' + query_name + '?input=' + urllib.parse.quote(json.dumps(parameters)),
+                    headers={"Authorization": f"Bearer {self.token}"} if self.token else None,
+                    timeout=300
+                ).json()
                 if 'result' in response and 'data' in response['result']:
                     return response['result']['data']
                 else:
@@ -57,8 +59,13 @@ class DMPConnectiontRPC:
                     # print('Error: ', response.get('error', {}.get('message')))
                     return response
             elif found_item['method'] == 'POST':
-                response = requests.request(found_item['method'], self.host + '/' + query_name,
-                cookies=self._cookies, json=parameters, timeout=300).json()
+                response = requests.request(
+                    found_item['method'],
+                    self.host + '/' + query_name,
+                    headers={"Authorization": f"Bearer {self.token}"} if self.token else None,
+                    json=parameters, 
+                    timeout=300
+                ).json()
                 if 'result' in response and 'data' in response['result']:
                     return response['result']['data']
                 else:
@@ -79,8 +86,11 @@ class DMPConnectiontRPC:
                 self.user = user
             else:
                 print('Token not recognized.')
+                return False
         except Exception as e:
             print(f"Token not recognized. {e}")
+            return False
+        return True
 
     def who_am_i(self):
         """
@@ -114,15 +124,14 @@ class DMPConnectiontRPC:
                 refactored_version_ids.append(el['id'])
                 if el['tag'] == version_id:
                     break
-        
-        responses = self.send_query('data.getStudyData', {"studyId": study_id, "fieldIds": field_ids, "versionId": refactored_version_ids})
+        responses = self.send_query('data.getStudyData', {"studyId": study_id, "fieldIds": field_ids, "versionId": refactored_version_ids, "fromCold": True})
         return responses['raw'] if 'raw' in responses else responses
         
     def get_data_latest(self, study_id, field_ids ):
         """
             Python wrapper for data.getStudyDataLatest.
         """
-        responses =  self.send_query('data.getStudyData', {"studyId": study_id, "fieldIds": field_ids})
+        responses = self.send_query('data.getStudyData', {"studyId": study_id, "fieldIds": field_ids})
         return responses['raw'] if 'raw' in responses else responses
         
     def get_files(self, study_id, version_id='-1', field_ids=None):
@@ -141,6 +150,7 @@ class DMPConnectiontRPC:
             tmp = []
             for version in study['dataVersions']:
                 if version['tag'] == version_id:
+                    tmp.append(version['id'])
                     break
                 else:
                     tmp.append(version['id'])
@@ -148,7 +158,8 @@ class DMPConnectiontRPC:
         parameters = {
             'studyId': study_id,
             'readable': True,
-            'versionId': refactored_version_ids
+            'versionId': refactored_version_ids,
+            'useCache': False
         }
         if field_ids:
             parameters['fieldIds'] = field_ids
@@ -248,7 +259,7 @@ class DMPConnectiontRPC:
         """
         try:
             response = requests.request('POST', self.host + '/' + 'data.uploadStudyFileData', 
-            cookies=self._cookies,
+            headers={"Authorization": f"Bearer {self.token}"} if self.token else None,
             data={
                 "studyId": study_id,
                 "fieldId": field_id,
@@ -270,11 +281,7 @@ class DMPConnectiontRPC:
             Python wrapper for file.getFile.
         """
         url = f'{self.host[:-5]}/file/{file_id}'
-        response = requests.get(url,  cookies=self._cookies, stream=stream)
-        # print(url, self._cookies)
+        response = requests.get(url, headers={"Authorization": f"Bearer {self.token}"} if self.token else None, stream=stream)
         if response.status_code != 200:
             raise Exception(f'Failed to download file {file_id}: {response.text}')
         return response.content
-
-
-        

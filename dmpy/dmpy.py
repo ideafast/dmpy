@@ -44,43 +44,6 @@ def list_files(
         version_id = '-1'
 ):
     conn = DMPConnectiontRPC()
-    kinds_mapping = {
-        'AX6': 'Axivity',
-        'BVN': 'Biovotion',
-        'BTF': 'Byteflies',
-        'MMM': 'McRoberts',
-        'DRM': 'Dreem',
-        'VTP': 'VitalPatch',
-        'BED': 'VTT Bed Sensor',
-        'YSM': 'ZKOne',
-        'MBT': 'Mbient',
-        'IDE': 'German Interview Transcripts',
-        'IEN': 'English Interview Transcripts',
-        'INL': 'Dutch Interview Transcripts',
-        'TEQ': 'Technology Experience Questionnaire',
-        'PSG': 'PSG Study Polysomnography Data',
-        'PSR': 'PSG raw data',
-        'PSM': 'PSG meta data',
-        'SMA': 'Stress Monitor App',
-        'TFA': 'ThinkFast App',
-        'SMQ': 'Stress Monitor App Questionnaire',
-        'VIR': 'Virtual device type',
-        'CAN': 'Cantab App',
-        'TUP': 'Cantab TUP data',
-        'WLD': 'Wildkey App',
-        'SOC': 'Wildkey Social App',
-        'SLP': 'Derived BED Sleep Features',
-        'STS': 'Derived AX6 Kinematic Features',
-        'COG': 'Derived CAN Cognitive Performance Metrics',
-        'WKT': 'Derived WLD Typing Features',
-        'WKS': 'Derived SOC Social Features',
-        'HRV': 'Derived VTP HRV Features',
-        'VIT': 'Derived VTP Basic Features',
-        'GVA': 'Derived AX6 Gait Features',
-        'MCR': 'Derived McRoberts Classification',
-        'POE': 'Participant Experiences Opinions'
-    }
-
     if kinds:
         refactored_kinds = []
         for kind in kinds:
@@ -434,6 +397,14 @@ def create_new_field(study_id: str, field_id: str, field_name: str, data_type: s
     )
     return field_json_reformat(field)
 
+def delete_study_field(study_id: str, field_id: str):
+    conn = DMPConnectiontRPC()
+    conn.delete_study_field(study_id, field_id)
+
+def delete_data(study_id: str, field_id: str, properties: Optional[Any] = None):
+    conn = DMPConnectiontRPC()
+    conn.delete_data(study_id, field_id, properties)
+
 def upload_data(study_id: str, file_name: str, file_content: bytes, participant_id=None, device_id=None,
             start_date=None, end_date=None, field_id=None, properties = None):
     conn = DMPConnectiontRPC()
@@ -449,7 +420,7 @@ def upload_data(study_id: str, file_name: str, file_content: bytes, participant_
         
     def ensure_milliseconds(ts: str) -> str:
         """
-        Convert various date/timestamp formats to YYYY-MM-DD format.
+        Convert various date/timestamp formats to YYYYMMDD format (without hyphens).
         
         Args:
             ts: Input timestamp/date that could be:
@@ -458,22 +429,26 @@ def upload_data(study_id: str, file_name: str, file_content: bytes, participant_
                 - String date in format YYYY-MM-DD
                 
         Returns:
-            str: Date in YYYY-MM-DD format, or original string if conversion fails
+            str: Date in YYYYMMDD format (without hyphens), or original string if conversion fails
         """
         if not ts:
             return ts
             
         # Try parsing as YYYY-MM-DD first
         try:
-            datetime.strptime(ts, '%Y-%m-%d')
-            return ts
+            if isinstance(ts, str) and len(ts) == 10 and ts[4] == '-' and ts[7] == '-':
+                dt = datetime.strptime(ts, '%Y-%m-%d')
+                return dt.strftime('%Y%m%d')  # Convert to YYYYMMDD
+            
         except (ValueError, TypeError):
             pass
 
-        # Try parsing as YYYYMMDD
+        # Check if already in YYYYMMDD format
         try:
             if isinstance(ts, str) and len(ts) == 8 and ts.isdigit():
-                return f"{ts[:4]}-{ts[4:6]}-{ts[6:]}"
+                # Validate it's a valid date
+                datetime.strptime(ts, '%Y%m%d')
+                return ts  # Already in correct format
         except (ValueError, TypeError):
             pass
 
@@ -484,9 +459,9 @@ def upload_data(study_id: str, file_name: str, file_content: bytes, participant_
             if ts_int < 4102444800:  # 2100-01-01 in seconds
                 ts_int *= 1000
             
-            # Convert to UTC datetime and format as YYYY-MM-DD
+            # Convert to UTC datetime and format as YYYYMMDD
             utc_dt = datetime.fromtimestamp(ts_int / 1000, tz=timezone.utc)
-            return utc_dt.strftime('%Y-%m-%d')
+            return utc_dt.strftime('%Y%m%d')
             
         except (ValueError, TypeError):
             return ts  # Return original if conversion fails
@@ -510,10 +485,7 @@ def get_data_records(study_id, field_ids, version_id='-1', data_format=None, tab
     if version_id is None:
         data = conn.get_study_data(study_id, field_ids, None)
     elif version_id:
-        if version_id == '-1':
-            data = conn.get_study_data(study_id, field_ids, version_id)
-        else:
-            data = conn.get_study_data(study_id, field_ids, version_id)
+        data = conn.get_study_data(study_id, field_ids, version_id)
     else:
         data = conn.get_data_latest(study_id, field_ids)
     subjects_to_remove = [
@@ -607,10 +579,14 @@ def fetch_adam_data(study_id, domain, version_id=None):
             return None
 
 def adsl(conn, study_id, derived_fields, version_id='-1'):
-    desired_order = ['USUBJID','SITE','REGION','COUNTRY','STUDYID','COHORT','DEMOCOLLDTC','ANALYSISSET','IASSET','BMI','HEIGHT','WEIGHT','AGE','AGEU','AGECAT','GENDER','OCCUPATION','EDUCATION','ETHNICITY','TIMESINCEDIAG','TUPSTDT','TUP1DT','TUP1DE','TUP1TZ','TUP2DT','TUP2DE','TUP2TZ','TUP3DT','TUP3DE','TUP3TZ','TUP4DT','TUP4DE','TUP4TZ']
+    desired_order = ['USUBJID','SITE','REGION','COUNTRY','STUDYID','COHORT','DEMOCOLLDTC','ANALYSISSET','IASSET','BMI','HEIGHT','WEIGHT','AGE','AGEU','AGECAT','GENDER','OCCUPATION','EDUCATION','ETHNICITY','TIMESINCEDIAG','TUPSTDT','TUP1DT','TUP1DE','TUP1TZ','TUP2DT','TUP2DE','TUP2TZ','TUP3DT','TUP3DE','TUP3TZ','TUP4DT','TUP4DE','TUP4TZ','FutureDataUse','FutureBiosampleUse']
+    adsl_fields = list(derived_fields)
+    for field_id in ('660', '661', '1143', '1144'):
+        if field_id not in adsl_fields:
+            adsl_fields.append(field_id)
     adsl_raw_data = get_data_records(
         study_id=study_id,
-        field_ids=derived_fields,
+        field_ids=adsl_fields,
         version_id=version_id
     )
 
@@ -639,6 +615,27 @@ def adsl(conn, study_id, derived_fields, version_id='-1'):
         '18': 'Madrid (Spain)',
         '19': 'Stavanger (Rogaland, Norway)',
         '20': 'Addenbrookes - Cambridge'
+    }
+    site_timezone_mapping = {
+        'A': 'Europe/Vienna',
+        'B': 'Europe/Rome',
+        'C': 'Europe/London',
+        'D': 'Europe/London',
+        'E': 'Europe/Amsterdam',
+        'F': 'Europe/London',
+        'G': 'Europe/Berlin',
+        'H': 'Europe/London',
+        'J': 'Europe/Dublin',
+        'K': 'Europe/Berlin',
+        'L': 'Europe/Amsterdam',
+        'N': 'Europe/London',
+        'O': 'Europe/London',
+        'P': 'Europe/Lisbon',
+        'Q': 'Europe/London',
+        'R': 'Europe/Oslo',
+        'S': 'Europe/Madrid',
+        'W': 'Europe/Warsaw',
+        'Y': 'Europe/London'
     }
     # derived_Demographics_Region
     region_mapping = {
@@ -727,6 +724,10 @@ def adsl(conn, study_id, derived_fields, version_id='-1'):
         '6': 'From Colombia, indigenous ancestry',
         '7': 'Prefer not to say / disclose'
     }
+    standard_ethnicities = {
+        'White', 'Asian', 'Black', 'Hispanic', 'Mixed',
+        'Prefer not to say / disclose', 'Chinese'
+    }
     # ias mapping 
     ias_mapping = {
         '1': 'Train',
@@ -752,6 +753,12 @@ def adsl(conn, study_id, derived_fields, version_id='-1'):
                     continue
                 if field_id == '1168':
                     data[subject_id]['COHORT'] = cohort_mapping.get(adsl_raw_data[subject_id][visit_id][field_id], None)
+                    continue
+                if field_id == '660':
+                    data[subject_id]['FutureDataUse'] = adsl_raw_data[subject_id][visit_id][field_id]
+                    continue
+                if field_id == '661':
+                    data[subject_id]['FutureBiosampleUse'] = adsl_raw_data[subject_id][visit_id][field_id]
                     continue
                 if field_id == 'derived_Demographics_DateofAssessment':
                     data[subject_id]['DEMOCOLLDTC'] = adsl_raw_data[subject_id][visit_id][field_id]
@@ -785,7 +792,10 @@ def adsl(conn, study_id, derived_fields, version_id='-1'):
                     data[subject_id]['EDUCATION'] = education_mapping.get(adsl_raw_data[subject_id][visit_id][field_id], None)
                     continue
                 if field_id == '1143':
-                    data[subject_id]['ETHINICITY'] = ethnicity_mapping.get(adsl_raw_data[subject_id][visit_id][field_id], None)
+                    data[subject_id]['_EthnicityId'] = adsl_raw_data[subject_id][visit_id][field_id]
+                    continue
+                if field_id == '1144':
+                    data[subject_id]['_EthnicityOther'] = adsl_raw_data[subject_id][visit_id][field_id]
                     continue
                 if field_id == 'derived_SubjectgroupCharacterisation_timesincediagnosis':
                     data[subject_id]['TIMESINCEDIAG'] = adsl_raw_data[subject_id][visit_id][field_id]
@@ -799,17 +809,11 @@ def adsl(conn, study_id, derived_fields, version_id='-1'):
                 if field_id == 'derived_TUP1_stop_date':
                     data[subject_id]['TUP1DE'] = adsl_raw_data[subject_id][visit_id][field_id]
                     continue
-                if field_id == 'derived_TUP1_start_timezone':
-                    data[subject_id]['TUP1TZ'] = adsl_raw_data[subject_id][visit_id][field_id]
-                    continue
                 if field_id == 'derived_TUP2_start_date':
                     data[subject_id]['TUP2DT'] = adsl_raw_data[subject_id][visit_id][field_id]
                     continue
                 if field_id == 'derived_TUP2_stop_date':
                     data[subject_id]['TUP2DE'] = adsl_raw_data[subject_id][visit_id][field_id]
-                    continue
-                if field_id == 'derived_TUP2_start_timezone':
-                    data[subject_id]['TUP2TZ'] = adsl_raw_data[subject_id][visit_id][field_id]
                     continue
                 if field_id == 'derived_TUP3_start_date':
                     data[subject_id]['TUP3DT'] = adsl_raw_data[subject_id][visit_id][field_id]
@@ -817,17 +821,11 @@ def adsl(conn, study_id, derived_fields, version_id='-1'):
                 if field_id == 'derived_TUP3_stop_date':
                     data[subject_id]['TUP3DE'] = adsl_raw_data[subject_id][visit_id][field_id]
                     continue
-                if field_id == 'derived_TUP3_start_timezone':
-                    data[subject_id]['TUP3TZ'] = adsl_raw_data[subject_id][visit_id][field_id]
-                    continue
                 if field_id == 'derived_TUP4_start_date':
                     data[subject_id]['TUP4DT'] = adsl_raw_data[subject_id][visit_id][field_id]
                     continue
                 if field_id == 'derived_TUP4_stop_date':
                     data[subject_id]['TUP4DE'] = adsl_raw_data[subject_id][visit_id][field_id]
-                    continue
-                if field_id == 'derived_TUP4_start_timezone':
-                    data[subject_id]['TUP4TZ'] = adsl_raw_data[subject_id][visit_id][field_id]
                     continue
                 if field_id == 'ias_train_test':
                     data[subject_id]['IASSET'] = ias_mapping.get(adsl_raw_data[subject_id][visit_id][field_id],
@@ -835,6 +833,18 @@ def adsl(conn, study_id, derived_fields, version_id='-1'):
                     continue
 
     for subject in data:
+        site_timezone = site_timezone_mapping.get(subject[:1].upper(), '')
+        for timezone_column in ('TUP1TZ', 'TUP2TZ', 'TUP3TZ', 'TUP4TZ'):
+            data[subject][timezone_column] = site_timezone
+        ethnicity_id = data[subject].pop('_EthnicityId', None)
+        ethnicity = ethnicity_mapping.get(str(ethnicity_id), ethnicity_id)
+        ethnicity_other = data[subject].pop('_EthnicityOther', None)
+        if pd.isna(ethnicity) or ethnicity in standard_ethnicities:
+            data[subject]['ETHNICITY'] = ethnicity
+        elif not pd.isna(ethnicity_other) and ethnicity_other not in ('NULL', 'n/a'):
+            data[subject]['ETHNICITY'] = ethnicity_other
+        else:
+            data[subject]['ETHNICITY'] = ''
         for key in desired_order:
             if key not in data[subject]:
                 data[subject][key] = ''
@@ -883,14 +893,14 @@ def flag_invalid_pro_dates(participants: pd.DataFrame, pros: pd.DataFrame, accep
     tup_dates.dropna(inplace=True)
 
     tup_dates["VISITNUM"] = tup_dates.TUP.map({
-        "TUP1DT": "Visit 1",
-        "TUP1DE": "Visit 2",
-        "TUP2DT": "Visit 3",
-        "TUP2DE": "Visit 4",
-        "TUP3DT": "Visit 5",
-        "TUP3DE": "Visit 6",
-        "TUP4DT": "Visit 7",
-        "TUP4DE": "Visit 8",    
+        "TUP1DT": 1,
+        "TUP1DE": 2,
+        "TUP2DT": 3,
+        "TUP2DE": 4,
+        "TUP3DT": 5,
+        "TUP3DE": 6,
+        "TUP4DT": 7,
+        "TUP4DE": 8,    
     })
 
     data = data.merge(tup_dates[["USUBJID", "VISITNUM", "TUPDT"]], how="left") 
@@ -930,10 +940,10 @@ def process_subject_data(subject_id, adpro_raw_data, study, atup_mapping, kss_ma
             dataclip['STUDYID'] = study.get('name', None)
             dataclip['ANALYSISSET'] = dataset_mapping.get(adpro_raw_data[subject_id][visit_id].get('dataset_id', None), None)
             dataclip['IASSET'] = ias_mapping.get(adpro_raw_data[subject_id][visit_id].get('ias_train_test', None), None)
-            dataclip['VISITNUM'] = 'Visit ' + visit_id
+            dataclip['VISITNUM'] = int(visit_id)
             dataclip['AVISIT'] = 'Visit ' + visit_id
-            dataclip['TUPNUM'] = 'TUP ' + str(math.ceil(int(visit_id) / 2))
-            dataclip['ATUP'] = atup_mapping.get(visit_id, None)
+            dataclip['TUPNUM'] = int(math.ceil(int(visit_id) / 2))
+            dataclip['ATUP'] = 'TUP ' + str(math.ceil(int(visit_id) / 2))
 
             if field_id == 'derived_FACITF_score':
                 dataclip['ADT'] = adpro_raw_data[subject_id][visit_id].get('derived_FACITF_DateofAssessment', None)
@@ -1110,7 +1120,7 @@ def process_subject_data(subject_id, adpro_raw_data, study, atup_mapping, kss_ma
             if subject_id and visit_id and ADT:
                 tup_key = 'derived_TUP' + str(int(math.ceil(int(visit_id)/2))) + '_start_date'
                 result = 'NA'
-                if tup_key in adpro_raw_data[subject_id]['0']:
+                if tup_key in adpro_raw_data[subject_id]['0'] and adpro_raw_data[subject_id]['0'][tup_key] is not None:
                     time1_dt = datetime.strptime(ADT, format1)
                     time2_dt = datetime.strptime(adpro_raw_data[subject_id]['0'][tup_key], format2)
                     difference = time1_dt - time2_dt
@@ -1259,6 +1269,7 @@ def adpro(conn, study_id, derived_fields, version_id='-1'):
     return df[desired_order]
 
 def addi(conn, study_id, derived_fields, version_id='-1'):
+    study_name = conn.get_studies(study_id)[0].get('name', None)
     addi_data = get_data_records(
         study_id=study_id,
         field_ids=["derived_ADDI"],
@@ -1285,7 +1296,7 @@ def addi(conn, study_id, derived_fields, version_id='-1'):
         "8": "End of TUP 4",
     }
     dataframe = []
-    desired_order = ['USUBJID', 'STUDYID', 'ANALYSISSET', 'IASSET', 'VISITNUM', 'AVISIT', 'TUPNUM', 'ATUP', 'ADT', 'ATM', 'TIMING', 'AVAL', 'AVALC', 'PARAM', 'PARAMCD']
+    desired_order = ['USUBJID', 'STUDYID', 'ANALYSISSET', 'IASSET', 'TUPNUM', 'ATUP', 'ADT', 'ATM', 'TIMING', 'AVAL', 'AVALC', 'PARAM', 'PARAMCD']
     dataframe.append(desired_order)
     param_mapping = {
         'ACTIVI01': "Where were you mainly in the last hour, inside, outside, motorised transport (bus, car, train?)",
@@ -1315,7 +1326,7 @@ def addi(conn, study_id, derived_fields, version_id='-1'):
         for visitId in addi_data[subjectId]:
             if visitId == '0':
                 continue
-            tmp = [subjectId, 'IDEAFAST COS']
+            tmp = [subjectId, study_name]
             if dataset_id_data.get(subjectId, {}).get(visitId):
                 if dataset_id_data[subjectId][visitId]['dataset_id'] == '1':
                     tmp.append('ISA')
@@ -1334,10 +1345,10 @@ def addi(conn, study_id, derived_fields, version_id='-1'):
                     tmp.append('')
             else:
                 tmp.append('')
-            tmp.append(str(visitId))
-            tmp.append('Visit ' + str(visitId))
-            tmp.append('TUP ' + str(math.ceil(int(visitId) / 2)))
-            tmp.append(ATUP_mapping[str(visitId)])
+            # tmp.append(str(visitId))
+            # tmp.append('Visit ' + str(visitId))
+            tmp.append(int(math.ceil(int(visitId) / 2)))
+            tmp.append(f"TUP {int(math.ceil(int(visitId) / 2))}")
             # print(addi_data[subjectId][visitId]['derived_ADDI'])
             # First, load the outer JSON string
             data_string = json.loads(addi_data[subjectId][visitId]['derived_ADDI'])
@@ -1396,10 +1407,10 @@ def adcl(conn, study_id, derived_fields, version_id='-1'):
                 dataclip['STUDYID'] = study_name
                 dataclip['ANALYSISSET'] = dataset_mapping.get(adcl_data[subject_id][visit_id].get('dataset_id', None), None)
                 dataclip['IASSET'] = ias_mapping.get(adcl_data[subject_id][visit_id].get('ias_train_test', None), None)
-                dataclip['VISITNUM'] = 'Visit ' + visit_id
+                dataclip['VISITNUM'] = int(visit_id)
                 dataclip['AVISIT'] = 'Visit ' + visit_id
-                dataclip['TUPNUM'] = 'TUP ' + str(math.ceil(int(visit_id) / 2))
-                dataclip['ATUP'] = 'NA'
+                dataclip['TUPNUM'] = int(math.ceil(int(visit_id) / 2))
+                dataclip['ATUP'] = 'TUP ' + str(math.ceil(int(visit_id) / 2))
 
                 if field_id == 'derived_MDSUPDRSII_mdsupdrs2_score':
                     dataclip['FORMID'] = 'MDS-UPDRS'
@@ -1557,6 +1568,3 @@ def list_study_versions(study_id):
         'created': datetime.utcfromtimestamp(v['life']['createdTime'] / 1000).strftime('%Y-%m-%d')
     } for v in versions])
 
-
-
-# used for DMP V3
